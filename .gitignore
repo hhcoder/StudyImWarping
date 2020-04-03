@@ -1,3 +1,14 @@
 *.out
 *.swp
 *.swo
+external/
+x64/
+*.sln
+build/
+.vs/
+core_lib/x64/
+*.vcxproj
+*.filters
+*.user
+cpp_experiment/x64/
+
