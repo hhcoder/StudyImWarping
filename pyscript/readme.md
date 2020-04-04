@@ -1,3 +1,20 @@
+ GenerateDescModule
+ . read in image, with provided setting
+ . Generate key points
+ . based on key points, calculate tiles of src and dst
+ . filled in all informations
+
+class ImageDesc
+def CtrlPtsDesc:
+def TilesDesc:
+def ProjMatrixDesc:
+
+DisplayModule
+. Display image
+. display key points (from json file)
+. display Tiles (from json file)
+. list proj matrix?
+
 {
     "src":
     {

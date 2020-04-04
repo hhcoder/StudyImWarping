@@ -11,4 +11,5 @@ core_lib/x64/
 *.filters
 *.user
 cpp_experiment/x64/
-
+.vscode/
+*.code-workspace
