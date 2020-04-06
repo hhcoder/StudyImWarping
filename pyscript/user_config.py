@@ -12,16 +12,17 @@ class img_desc:
     data_format = {'raw8': np.uint8,
                     'float': np.float}
 
-    def __init__(self, cols=0, rows=0):
-        self.im = np.array((cols, rows), np.intc)
-        self.format_desc = {
-            "width": self.im.shape[1], 
-            "height": self.im.shape[0], 
-            "format": "raw8" }
+    def __init__(self, cols=None, rows=None):
+        if cols is not None and rows is not None:
+            self.im = np.empty((cols, rows), dtype=np.intc)
+            self.format_desc = {
+                "width": self.im.shape[1], 
+                "height": self.im.shape[0], 
+                "format": "raw8" }
 
     def read_encoded(self, dir, fname, fext):
         fpath = os.path.join(dir, fname + fext)
-        self.im = np.array(Image.open(fpath).convert("L"), np.intc)
+        self.im = np.array(Image.open(fpath).convert("L"), dtype=np.intc)
         self.format_desc = {
             "width": self.im.shape[1], 
             "height": self.im.shape[0], 
@@ -60,8 +61,8 @@ class img_desc:
 
 class ctrl_pts_desc:
     def __init__(self, cols, rows):
-        self.x = np.ndarray((rows,cols),dtype=np.intc)
-        self.y = np.ndarray((rows,cols),dtype=np.intc)
+        self.x = np.empty((rows,cols),dtype=np.intc)
+        self.y = np.empty((rows,cols),dtype=np.intc)
     
     def rows(self):
         return self.x.shape[0]
@@ -103,69 +104,187 @@ class ctrl_pts_desc:
             for i in range(0, self.cols()):
                 axes.plot(self.x[j][i], self.y[j][i], "oy")
 
-class tiles_desc:
-    def __init__(self, cols, rows):
-        self.t = np.ndarray((rows, cols, 2, 4), dtype=np.intc)
-    
-    def rows(self):
-        return self.t.shape[0]
-    def cols(self):
-        return self.t.shape[1]
 
-    def setup_with_ctrl_pts(self, ctrl_pts):
-        for j in range(self.rows()):
-            for i in range (self.cols()):
-                xmax = max( (ctrl_pts.x[j][i], ctrl_pts.x[j][i+1], ctrl_pts.x[j+1][i], ctrl_pts.x[j+1][i+1]) )
-                xmin = min( (ctrl_pts.x[j][i], ctrl_pts.x[j][i+1], ctrl_pts.x[j+1][i], ctrl_pts.x[j+1][i+1]) )
-                ymax = max( (ctrl_pts.y[j][i], ctrl_pts.y[j][i+1], ctrl_pts.y[j+1][i], ctrl_pts.y[j+1][i+1]) )
-                ymin = min( (ctrl_pts.y[j][i], ctrl_pts.y[j][i+1], ctrl_pts.y[j+1][i], ctrl_pts.y[j+1][i+1]) )
-                self.t[j, i, 0, :] = [xmin, xmax, ymin, ymax]
+def decode_image_to_binary_format(
+    src_dir, src_fname, src_fext, 
+    dst_dir, dst_fname, dst_format):
+    fpath = os.path.join(src_dir, src_fname + src_fext)
+    im = np.array(Image.open(fpath).convert("L"), dtype=np.intc)
+    (cols, rows, stride) = (im.shape[1], im.shape[0], im.shape[1])
+    with open(os.path.join(dst_dir, dst_fname+".bin"), "wb") as f:
+        im.astype(np.uint8).tofile(f)
+    with open(os.path.join(dst_dir, dst_fname+".json"), 'w') as f:
+        file_desc = {
+            "folder": dst_dir,
+            "name": dst_fname,
+            "bin_ext": ".bin",
+            "json_ext": ".json",
+            "width": cols, 
+            "height": rows, 
+            "stride": stride,
+            "format": dst_format }
+        json.dump(file_desc, f, indent=4)
+    return (cols, rows, stride)
 
-def generate_user_config( src_dir, src_fname, src_fext, dst_dir, dst_cfg_fname):
-    img_src = img_desc()
-    img_src.read_encoded(src_dir, src_fname, src_fext)
-    src_pts = ctrl_pts_desc(4, 5)
-    src_pts.setup_fish_eye_ctrl_pts(img_src.cols(), img_src.rows())
-    img_dst = img_desc(img_src.cols(), img_src.rows())
-    dst_pts = ctrl_pts_desc(4,5)
-    img_dst.read_binary(dst_dir, src_fname, ".bin")
-    dst_pts.setup_grid_ctrl_pts(img_dst.cols(), img_dst.rows())
+
+def generate_user_config(
+    src_img_dim, 
+    dst_dir, dst_img_dim, control_point_dim,
+    dst_cfg_fname):
+
+    src_pts = ctrl_pts_desc(control_point_dim[0], control_point_dim[1])
+    src_pts.setup_fish_eye_ctrl_pts(src_img_dim[0], src_img_dim[1])
+
+    dst_pts = ctrl_pts_desc(control_point_dim[0], control_point_dim[1])
+    dst_pts.setup_grid_ctrl_pts(dst_img_dim[0], dst_img_dim[1])
+
     out_dict = {
         "src":
         {
-            "image_format": img_src.format_desc,
+            "image_format": 
+            {
+                "width": src_img_dim[0],
+                "height": src_img_dim[1],
+                "stride": src_img_dim[2],
+                "format": "raw8"
+            },
             "control_points":
-            {}
+            {
+                "x": src_pts.x.tolist(),
+                "y": src_pts.y.tolist()
+            },
+        },
+        "dst":
+        {
+            "image_format": 
+            {
+                "width": dst_img_dim[0],
+                "height": dst_img_dim[1],
+                "stride": dst_img_dim[2],
+                "format": "raw8"
+            },
+            "control_points":
+            {
+                "x": dst_pts.x.tolist(),
+                "y": dst_pts.y.tolist()
+            },
         }
-        # Here we are
+    }
 
     with open(os.path.join(dst_dir, dst_cfg_fname+".json"), 'w') as f:
         json.dump(out_dict, f, indent=4)
 
+def generate_input_data(
+    src_dir, src_img_fname,
+    dst_dir, dst_img_fname,
+    dst_input_fname):
+    out_dict = {
+        "src":
+        {
+            "image_bin":
+            {
+                "folder": src_dir,
+                "name": src_img_fname,
+                "bin_ext": ".bin"
+            }
+        },
+        "dst":
+        {
+            "image_bin":
+            {
+                "folder": dst_dir,
+                "name": dst_img_fname,
+                "bin_ext": ".bin",
+                "json_ext": ".json"            }
+        }
+    }
+    with open(os.path.join(dst_dir, dst_input_fname+".json"), 'w') as f:
+        json.dump(out_dict, f, indent=4)
+
+def generate_driver_setting(
+    src_dir, src_cfg_fname, 
+    dst_dir, dst_setting_fname):
+    cfg_info = json.load(open(os.path.join(src_dir, src_cfg_fname+".json")))
+    with open(os.path.join(dst_dir, dst_setting_fname+".json")) as f:
+        json.dump(cfg_info, f, indent=4)
+
+
 src_dir = "C:/HHWork/ImWarping/Data/Input/PyDefault/" 
-src_fname = "NIR_2020-03-18-05-08-04-429"
-src_fext = ".png"
+src_png_fname = "NIR_2020-03-18-05-08-04-429"
+src_png_ext = ".png"
 dst_dir = "C:/HHWork/ImWarping/Data/Output/PyDefault/"
 
-dst_config_fname = src_fname+"user_config"+".json"
+src_img_fname = src_png_fname + "_src_img"
+src_img_format = "gray8"
 
+dst_img_fname = src_png_fname + "_warpped_img"
+dst_img_format = "gray8"
 
-fig,axes = plt.subplots(1,2)
-img_src.fwrite(dst_dir, src_fname, ".bin")
-src_tiles = tiles_desc(3, 4)
-src_tiles.setup_with_ctrl_pts(src_pts)
+control_point_dim = (4, 5)
 
-img_src.show(axes[0])
-src_pts.show(axes[0])
+# generate_all_config(src_dir, src_png_fname, src_png_ex)
 
-img_dst.show(axes[1])
+if not os.path.exists(dst_dir):
+    os.makedirs(dst_dir)
 
-img_dst.show(axes[1])
-dst_pts.show(axes[1])
+user_config_fname = src_png_fname + "_user_config"
+input_data_fname = src_png_fname + "_input_data"
+driver_setting_fname = src_png_fname + "_driver_setting"
 
-plt.ion()
-plt.draw()
+(src_rows, src_cols, src_stride) = decode_image_to_binary_format(
+    src_dir, src_png_fname, src_png_ext, 
+    dst_dir, src_img_fname, src_img_format)
+
+(dst_rows, dst_cols, dst_stride) = (src_rows, src_cols, src_stride)
+
+generate_user_config(
+    (src_cols, src_rows, src_stride), 
+    dst_dir, (dst_cols, dst_rows, dst_stride), control_point_dim,
+    user_config_fname)
+
+generate_input_data(
+    dst_dir, src_img_fname,
+    dst_dir, dst_img_fname,
+    input_data_fname)
+
+generate_driver_setting(
+    dst_dir, user_config_fname, 
+    dst_dir, driver_setting_fname)
+
+# fig,axes = plt.subplots(1,2)
+# img_src.fwrite(dst_dir, src_fname, ".bin")
+# src_tiles = tiles_desc(3, 4)
+# src_tiles.setup_with_ctrl_pts(src_pts)
+
+# img_src.show(axes[0])
+# src_pts.show(axes[0])
+
+# img_dst.show(axes[1])
+
+# img_dst.show(axes[1])
+# dst_pts.show(axes[1])
+
+# plt.ion()
+# plt.draw()
 # manager = plt.get_current_fig_manager()
 # manager.full_screen_toggle()
-plt.show(block=True)
+# plt.show(block=True)
 # plt.pause(0.001)
+# class tiles_desc:
+#     def __init__(self, cols, rows):
+#         self.t = np.empty((rows, cols, 2, 4), dtype=np.intc)
+    
+#     def rows(self):
+#         return self.t.shape[0]
+#     def cols(self):
+#         return self.t.shape[1]
+
+#     def setup_with_ctrl_pts(self, ctrl_pts):
+#         for j in range(self.rows()):
+#             for i in range (self.cols()):
+#                 xmax = max( (ctrl_pts.x[j][i], ctrl_pts.x[j][i+1], ctrl_pts.x[j+1][i], ctrl_pts.x[j+1][i+1]) )
+#                 xmin = min( (ctrl_pts.x[j][i], ctrl_pts.x[j][i+1], ctrl_pts.x[j+1][i], ctrl_pts.x[j+1][i+1]) )
+#                 ymax = max( (ctrl_pts.y[j][i], ctrl_pts.y[j][i+1], ctrl_pts.y[j+1][i], ctrl_pts.y[j+1][i+1]) )
+#                 ymin = min( (ctrl_pts.y[j][i], ctrl_pts.y[j][i+1], ctrl_pts.y[j+1][i], ctrl_pts.y[j+1][i+1]) )
+#                 self.t[j, i, 0, :] = [xmin, xmax, ymin, ymax]
+
