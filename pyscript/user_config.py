@@ -181,6 +181,8 @@ def generate_user_config(
             },
             "control_points":
             {
+                "cols": control_point_dim[0],
+                "rows": control_point_dim[1],
                 "x": src_pts["x"].tolist(),
                 "y": src_pts["y"].tolist()
             },
@@ -196,6 +198,8 @@ def generate_user_config(
             },
             "control_points":
             {
+                "cols": control_point_dim[0],
+                "rows": control_point_dim[1],
                 "x": dst_pts["x"].tolist(),
                 "y": dst_pts["y"].tolist()
             },
@@ -239,6 +243,21 @@ def generate_driver_setting(
     with open(os.path.join(dst_dir, dst_setting_fname+".json"), 'w') as f:
         json.dump(cfg_info, f, indent=4)
 
+def generate_input_file_location( 
+    src_dir, 
+    input_data_fname, 
+    user_config_fname, 
+    driver_setting_fname, 
+    dst_dir, master_location_fname):
+    loc_info = {
+        "dir": src_dir,
+        "input_data": input_data_fname + ".json",
+        "user_config": user_config_fname + ".json",
+        "driver_setting": driver_setting_fname + ".json"
+    }
+    with open(os.path.join(dst_dir, master_location_fname+".json"), 'w') as f:
+        json.dump(loc_info, f, indent=4)
+
 
 src_dir = "C:/HHWork/ImWarping/Data/Input/PyDefault/" 
 src_png_fname = "NIR_2020-03-18-05-08-04-429"
@@ -261,6 +280,7 @@ if not os.path.exists(dst_dir):
 user_config_fname = src_png_fname + "_user_config"
 input_data_fname = src_png_fname + "_input_data"
 driver_setting_fname = src_png_fname + "_driver_setting"
+master_location_fname = src_png_fname + "_main"
 
 (src_rows, src_cols, src_stride) = decode_image_to_binary_format(
     src_dir, src_png_fname, src_png_ext, 
@@ -281,6 +301,10 @@ generate_input_data(
 generate_driver_setting(
     dst_dir, user_config_fname, 
     dst_dir, driver_setting_fname)
+
+generate_input_file_location(
+    dst_dir, input_data_fname, user_config_fname, driver_setting_fname, 
+    dst_dir, master_location_fname)
 
 # fig,axes = plt.subplots(1,2)
 # img_src.fwrite(dst_dir, src_fname, ".bin")
