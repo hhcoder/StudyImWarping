@@ -1,3 +1,4 @@
+#include "im_warp.h"
 #include "nlohmann/json.hpp"
 #include <string>
 #include <vector>
@@ -7,18 +8,17 @@
 template <typename T>
 struct img_generic_t : std::vector<T>
 {
-    static const std::string none("None");
     //allocator
-    img_gray8_t(const int in_width, const int in_height, const int in_stride, const std::string& bin_path = none)
+    img_generic_t(const int in_width, const int in_height, const int in_stride, const std::string& bin_path = "None")
         : width(in_width), height(in_height), stride(in_stride), std::vector<T>(in_height*in_stride)
     {
-        if (bin_path != none)
-            read(bin_path)
+        if (bin_path != "None")
+            read(bin_path);
     }
 
     void read(const std::string& bin_path)
     {
-        std::ofstream ifs(bin_path, std::ios::in | std::ios::binary);
+        std::ifstream ifs(bin_path, std::ios::in | std::ios::binary);
         if (!ifs)
         {
             std::cout << "error open file: " << bin_path;
@@ -26,7 +26,7 @@ struct img_generic_t : std::vector<T>
         else
         {
             std::size_t buf_size = sizeof(T) * height * stride;
-            ifs.read((char*)&(this->at[0]), buf_size);
+            ifs.read((char*)this->data(), buf_size);
         }
     }
 
@@ -44,17 +44,61 @@ struct img_generic_t : std::vector<T>
         }
     }
 
-    T* buf() { return &(this->at[0]); }
-
     int width;
     int height;
     int stride;
     //writer
 };
 
-static void warp_proc_gray8(img_gray8_t& src_img, img_gray8_t& dst_img, nlohmann::json js)
+using img_gray8_t = img_generic_t<uint8_t>;
+
+static void warp_proc_gray8(
+    const img_gray8_t& src_img, 
+    const std::vector<std::vector<int>>& src_ctrl_pts_x,
+    const std::vector<std::vector<int>>& src_ctrl_pts_y,
+    const std::vector<std::vector<int>>& dst_ctrl_pts_x,
+    const std::vector<std::vector<int>>& dst_ctrl_pts_y,
+    img_gray8_t& dst_img )
 {
-    // for each tile, call tile process 
+    for (std::size_t j = 0; j < src_ctrl_pts_x.size()-1; j++)
+    {
+        for (std::size_t i = 0; i < dst_ctrl_pts_x[0].size()-1; i++)
+        {
+            tile_gray8::proc_config_t in_config;
+
+            in_config.src_buf = src_img.data();
+
+            in_config.src_dim.width = src_img.width;
+            in_config.src_dim.height = src_img.height;
+            in_config.src_dim.stride = src_img.stride;
+
+            in_config.src_p00.x = src_ctrl_pts_x[j][i];
+            in_config.src_p00.y = src_ctrl_pts_y[j][i];
+            in_config.src_p01.x = src_ctrl_pts_x[j+1][i];
+            in_config.src_p01.y = src_ctrl_pts_y[j+1][i];
+            in_config.src_p10.x = src_ctrl_pts_x[j][i+1];
+            in_config.src_p10.y = src_ctrl_pts_y[j][i+1];
+            in_config.src_p11.x = src_ctrl_pts_x[j+1][i+1];
+            in_config.src_p11.y = src_ctrl_pts_y[j+1][i+1];
+
+            in_config.dst_buf = dst_img.data();
+
+            in_config.dst_dim.width = dst_img.width;
+            in_config.dst_dim.height = dst_img.height;
+            in_config.dst_dim.stride = dst_img.stride;
+
+            in_config.dst_p00.x = dst_ctrl_pts_x[j][i];
+            in_config.dst_p00.y = dst_ctrl_pts_y[j][i];
+            in_config.dst_p01.x = dst_ctrl_pts_x[j+1][i];
+            in_config.dst_p01.y = dst_ctrl_pts_y[j+1][i];
+            in_config.dst_p10.x = dst_ctrl_pts_x[j][i+1];
+            in_config.dst_p10.y = dst_ctrl_pts_y[j][i+1];
+            in_config.dst_p11.x = dst_ctrl_pts_x[j+1][i+1];
+            in_config.dst_p11.y = dst_ctrl_pts_y[j+1][i+1];
+
+            tile_gray8::warp_proc(in_config);
+        }
+    }
 }
 
 
@@ -62,7 +106,7 @@ int main(int argc, char* argv[])
 {
     if (argc != 2)
     {
-        std::cout << "Error: Caller has to provide in path information in json format" << std::endl;
+        std::cout << "Error: Caller has to provide path information in json format!" << std::endl;
         return 1;
     }
 
@@ -121,15 +165,26 @@ int main(int argc, char* argv[])
         std::cout << "kp_cols: " << kp_cols << std::endl;
 
         // Decode the input image
-        img_gray8_t
+        const std::string src_im_path =
+            js_indata["src"]["image_bin"]["dir"].get<std::string>() + 
+            js_indata["src"]["image_bin"]["name"].get<std::string>() +
+            js_indata["src"]["image_bin"]["ext"].get<std::string>();
 
-        for (int j = 0; j < kp_rows - 1; j++)
-        {
-            for (int i = 0; i < kp_cols - 1; i++)
-            {
-            }
-        }
-        
+        const std::string dst_im_path =
+            js_indata["dst"]["image_bin"]["dir"].get<std::string>() + 
+            js_indata["dst"]["image_bin"]["name"].get<std::string>() +
+            js_indata["dst"]["image_bin"]["ext"].get<std::string>();
+
+        std::cout << "src_im_path: " << src_im_path << std::endl;
+        std::cout << "dst_im_path: " << dst_im_path << std::endl;
+
+        img_gray8_t src_img(src_im_width, src_im_height, src_im_stride, src_im_path);
+        img_gray8_t dst_img(dst_im_width, dst_im_height, dst_im_stride, dst_im_path);
+
+        warp_proc_gray8(
+            src_img, 
+            src_ctrl_pts_x, src_ctrl_pts_y, dst_ctrl_pts_x, dst_ctrl_pts_y, 
+            dst_img);
     }
     catch (std::exception const& e)
     {

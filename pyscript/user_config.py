@@ -218,7 +218,7 @@ def generate_input_data(
         {
             "image_bin":
             {
-                "folder": src_dir,
+                "dir": src_dir,
                 "name": src_img_fname,
                 "ext": ".bin"
             }
@@ -227,7 +227,7 @@ def generate_input_data(
         {
             "image_bin":
             {
-                "folder": dst_dir,
+                "dir": dst_dir,
                 "name": dst_img_fname,
                 "ext": ".bin"
             }
