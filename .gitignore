@@ -13,3 +13,4 @@ core_lib/x64/
 cpp_experiment/x64/
 .vscode/
 *.code-workspace
+__pycache__

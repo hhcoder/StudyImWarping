@@ -21,7 +21,7 @@ struct img_generic_t : std::vector<T>
         std::ifstream ifs(bin_path, std::ios::in | std::ios::binary);
         if (!ifs)
         {
-            std::cout << "error open file: " << bin_path;
+            std::cerr << "error open file: " << bin_path;
         }
         else
         {
@@ -30,27 +30,57 @@ struct img_generic_t : std::vector<T>
         }
     }
 
-    void write(const std::string& bin_path)
+    void write(
+        const std::string& dst_dir,
+        const std::string& dst_name,
+        const std::string& dst_bin_ext,
+        const std::string& dst_json_ext, 
+        const std::string& format_type)
     {
-        std::ofstream ofs(bin_path, std::ios::out | std::ios::binary);
-        if (!ofs)
+        const std::string bin_path = dst_dir + dst_name + dst_bin_ext;
+        const std::string json_path = dst_dir + dst_name + dst_json_ext;
+
+        std::ofstream ofs_bin(bin_path, std::ios::out | std::ios::binary);
+        std::ofstream ofs_json(json_path, std::ios::out);
+
+        if (!ofs_bin)
         {
             std::cout << "error open file: " << bin_path;
+            return;
         }
-        else
+
+        if (!ofs_json)
         {
-            std::size_t buf_size = sizeof(T) * height * stride;
-            ofs.write((char*)&(this->at[0]), buf_size);
+            std::cerr << "error open file: " << json_path;
+            return;
         }
+
+        std::size_t buf_size = sizeof(T) * height * stride;
+        ofs_bin.write((char*)this->data(), buf_size);
+
+        nlohmann::json js;
+        js["width"] = width;
+        js["height"] = height;
+        js["stride"] = stride;
+        js["format"] = format_type;
+        ofs_json << js;
+
+        std::cout << "dst_im_path: " << bin_path << std::endl;
     }
 
     int width;
     int height;
     int stride;
-    //writer
 };
 
 using img_gray8_t = img_generic_t<uint8_t>;
+
+struct dbg_info_t
+{
+    std::string dir;
+    std::string fname;
+    std::string fext;
+};
 
 static void warp_proc_gray8(
     const img_gray8_t& src_img, 
@@ -58,8 +88,11 @@ static void warp_proc_gray8(
     const std::vector<std::vector<int>>& src_ctrl_pts_y,
     const std::vector<std::vector<int>>& dst_ctrl_pts_x,
     const std::vector<std::vector<int>>& dst_ctrl_pts_y,
-    img_gray8_t& dst_img )
+    img_gray8_t& dst_img,
+    dbg_info_t& dbg_info)
 {
+    dbg::jdump jd("C:/HHWork/ImWarping/Data/Output/PyDefault/", "points", ".json");
+
     for (std::size_t j = 0; j < src_ctrl_pts_x.size()-1; j++)
     {
         for (std::size_t i = 0; i < dst_ctrl_pts_x[0].size()-1; i++)
@@ -96,7 +129,11 @@ static void warp_proc_gray8(
             in_config.dst_p11.x = dst_ctrl_pts_x[j+1][i+1];
             in_config.dst_p11.y = dst_ctrl_pts_y[j+1][i+1];
 
-            tile_gray8::warp_proc(in_config);
+            using namespace std::literals;
+            tile_gray8::dbg_config_t dbg_config;
+            dbg_config.tile_x_idx_str = "xidx_"s + std::to_string(i) + "_"s;
+            dbg_config.tile_y_idx_str = "yidx_"s + std::to_string(j);
+            tile_gray8::warp_proc(in_config, jd, dbg_config);
         }
     }
 }
@@ -131,6 +168,12 @@ int main(int argc, char* argv[])
         nlohmann::json js_indata;
 
         ifs_indata >> js_indata;
+
+        std::string dbg_setting_fpath = js["dir"].get<std::string>() + js["debug_setting"].get<std::string>();
+        std::ifstream ifs_dbg(dbg_setting_fpath.c_str());
+
+        nlohmann::json js_dbg;
+        ifs_dbg >> js_dbg;
 
         // Decode the driver setting
         std::vector<std::vector<int>> src_ctrl_pts_x = js_drv["src"]["control_points"]["x"];
@@ -168,23 +211,30 @@ int main(int argc, char* argv[])
         const std::string src_im_path =
             js_indata["src"]["image_bin"]["dir"].get<std::string>() + 
             js_indata["src"]["image_bin"]["name"].get<std::string>() +
-            js_indata["src"]["image_bin"]["ext"].get<std::string>();
-
-        const std::string dst_im_path =
-            js_indata["dst"]["image_bin"]["dir"].get<std::string>() + 
-            js_indata["dst"]["image_bin"]["name"].get<std::string>() +
-            js_indata["dst"]["image_bin"]["ext"].get<std::string>();
+            js_indata["src"]["image_bin"]["bin_ext"].get<std::string>();
 
         std::cout << "src_im_path: " << src_im_path << std::endl;
-        std::cout << "dst_im_path: " << dst_im_path << std::endl;
 
         img_gray8_t src_img(src_im_width, src_im_height, src_im_stride, src_im_path);
-        img_gray8_t dst_img(dst_im_width, dst_im_height, dst_im_stride, dst_im_path);
+        img_gray8_t dst_img(dst_im_width, dst_im_height, dst_im_stride);
+
+        dbg_info_t dbg_info;
+        dbg_info.dir = js_dbg["dir"].get<std::string>();
+        dbg_info.fname = js_dbg["fname"].get<std::string>();
+        dbg_info.fext = js_dbg["ext"].get<std::string>();
 
         warp_proc_gray8(
             src_img, 
             src_ctrl_pts_x, src_ctrl_pts_y, dst_ctrl_pts_x, dst_ctrl_pts_y, 
-            dst_img);
+            dst_img,
+            dbg_info);
+
+        dst_img.write(
+            js_indata["dst"]["image_bin"]["dir"].get<std::string>(),
+            js_indata["dst"]["image_bin"]["name"].get<std::string>(),
+            js_indata["dst"]["image_bin"]["bin_ext"].get<std::string>(),
+            js_indata["dst"]["image_bin"]["json_ext"].get<std::string>(),
+            "raw8");
     }
     catch (std::exception const& e)
     {

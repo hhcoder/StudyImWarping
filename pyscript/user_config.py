@@ -6,6 +6,8 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
+from util import img_loader
+
 # import matplotlib.image as mpimg
 
 # class img_desc:
@@ -124,8 +126,8 @@ def distance_to_center(xloc, yloc, width_half, height_half):
     return math.sqrt(math.cos( dist * math.pi / 4))
 
 def ctrl_pts_fish_eye(img_width, img_height, ctrl_cols, ctrl_rows):
-    xidx = np.linspace(0, img_width, num=ctrl_cols).astype(int)
-    yidx = np.linspace(0, img_height, num=ctrl_rows).astype(int)
+    xidx = np.linspace(0, img_width-1, num=ctrl_cols).astype(int)
+    yidx = np.linspace(0, img_height-1, num=ctrl_rows).astype(int)
     x = np.empty((ctrl_rows, ctrl_cols),dtype=np.intc)
     y = np.empty((ctrl_rows, ctrl_cols),dtype=np.intc)
     n = 0
@@ -138,8 +140,8 @@ def ctrl_pts_fish_eye(img_width, img_height, ctrl_cols, ctrl_rows):
     return {"x": x, "y": y}
 
 def ctrl_pts_rect_grid(img_width, img_height, ctrl_cols, ctrl_rows):
-    xidx = np.linspace(0, img_width, num=ctrl_cols).astype(int)
-    yidx = np.linspace(0, img_height, num=ctrl_rows).astype(int)
+    xidx = np.linspace(0, img_width-1, num=ctrl_cols).astype(int)
+    yidx = np.linspace(0, img_height-1, num=ctrl_rows).astype(int)
     x = np.empty((ctrl_rows, ctrl_cols),dtype=np.intc)
     y = np.empty((ctrl_rows, ctrl_cols),dtype=np.intc)
     n = 0
@@ -152,12 +154,18 @@ def ctrl_pts_rect_grid(img_width, img_height, ctrl_cols, ctrl_rows):
 
 def decode_image_to_binary_format(
     src_dir, src_fname, src_fext, 
-    dst_dir, dst_fname, dst_format):
+    dst_dir, dst_fname, dst_format, dst_bin_ext=".bin", dst_json_ext=".json"):
     fpath = os.path.join(src_dir, src_fname + src_fext)
     im = np.array(Image.open(fpath).convert("L"), dtype=np.intc)
     (cols, rows, stride) = (im.shape[1], im.shape[0], im.shape[1])
-    with open(os.path.join(dst_dir, dst_fname+".bin"), "wb") as f:
+    with open(os.path.join(dst_dir, dst_fname+dst_bin_ext), "wb") as f:
         im.astype(np.uint8).tofile(f)
+    with open(os.path.join(dst_dir, dst_fname+dst_json_ext), "w") as f:
+        desc = { "width": cols, 
+                 "height": rows, 
+                 "stride": stride, 
+                 "format": "raw8" }
+        json.dump(desc, f, indent=4)
     return (cols, rows, stride)
 
 def generate_user_config(
@@ -220,7 +228,8 @@ def generate_input_data(
             {
                 "dir": src_dir,
                 "name": src_img_fname,
-                "ext": ".bin"
+                "bin_ext": ".bin",
+                "json_ext": ".json"
             }
         },
         "dst":
@@ -229,7 +238,8 @@ def generate_input_data(
             {
                 "dir": dst_dir,
                 "name": dst_img_fname,
-                "ext": ".bin"
+                "bin_ext": ".bin",
+                "json_ext": ".json"
             }
         }
     }
@@ -243,26 +253,64 @@ def generate_driver_setting(
     with open(os.path.join(dst_dir, dst_setting_fname+".json"), 'w') as f:
         json.dump(cfg_info, f, indent=4)
 
+
+def generate_dbg_setting(dst_dir, dbg_setting_fname):
+    dbg_dict = {
+        "dir": dst_dir,
+        "fname": dbg_setting_fname,
+        "fext": ".json" }
+
+    with open(os.path.join(dst_dir, dbg_setting_fname+".json"), 'w') as f:
+        json.dump(dbg_dict, f, indent=4)
+
 def generate_input_file_location( 
     src_dir, 
     input_data_fname, 
     user_config_fname, 
     driver_setting_fname, 
+    dbg_setting_fname,
     dst_dir, master_location_fname):
     loc_info = {
         "dir": src_dir,
         "input_data": input_data_fname + ".json",
         "user_config": user_config_fname + ".json",
-        "driver_setting": driver_setting_fname + ".json"
+        "driver_setting": driver_setting_fname + ".json",
+        "dbg_setting": dbg_setting_fname + ".json"
     }
     with open(os.path.join(dst_dir, master_location_fname+".json"), 'w') as f:
         json.dump(loc_info, f, indent=4)
 
+def show_warpping_result(dst_dir, master_location_fname):
+    file_location = json.load(open(os.path.join(dst_dir, master_location_fname+".json")))
 
-src_dir = "C:/HHWork/ImWarping/Data/Input/PyDefault/" 
-src_png_fname = "NIR_2020-03-18-05-08-04-429"
+    input_data = json.load(open(os.path.join(file_location["dir"], file_location["input_data"])))
+    driver_setting = json.load(open(os.path.join(file_location["dir"], file_location["driver_setting"])))
+
+    img_src = img_loader()
+    img_src.read_binary(input_data["src"]["image_bin"]["dir"], input_data["src"]["image_bin"]["name"], ".bin", ".json")
+    img_dst = img_loader()
+    img_dst.read_binary(input_data["dst"]["image_bin"]["dir"], input_data["dst"]["image_bin"]["name"], ".bin", ".json")
+    fig,axes = plt.subplots(1,2)
+    img_src.show(axes[0])
+    img_dst.show(axes[1])
+    # debug_setting = json.load(open(os.path.join(file_location["dir"], file_location["debug_setting"])))
+    # debug_result = json.load(open(os.path.join(debug_setting["dir"], debug_setting["fname"]+debug_setting["fext"])))
+    # manager = plt.get_current_fig_manager()
+    # manager.full_screen_toggle()
+    plt.show(block=True)
+    plt.pause(0.001)
+
+
+#PyDefault
+# src_dir = "C:/HHWork/ImWarping/Data/Input/PyDefault/" 
+# src_png_fname = "NIR_2020-03-18-05-08-04-429"
+# src_png_ext = ".png"
+# dst_dir = "C:/HHWork/ImWarping/Data/Output/PyDefault/"
+
+src_dir = "C:/HHWork/ImWarping/Data/Input/Internet/" 
+src_png_fname = "girl-with-balloon"
 src_png_ext = ".png"
-dst_dir = "C:/HHWork/ImWarping/Data/Output/PyDefault/"
+dst_dir = "C:/HHWork/ImWarping/Data/Output/Internet/"
 
 src_img_fname = src_png_fname + "_src_img"
 src_img_format = "gray8"
@@ -281,16 +329,18 @@ user_config_fname = src_png_fname + "_user_config"
 input_data_fname = src_png_fname + "_input_data"
 driver_setting_fname = src_png_fname + "_driver_setting"
 master_location_fname = src_png_fname + "_main"
+dbg_setting_fname = src_png_fname + "_dbg_setting"
 
-(src_rows, src_cols, src_stride) = decode_image_to_binary_format(
+src_dim = decode_image_to_binary_format(
     src_dir, src_png_fname, src_png_ext, 
     dst_dir, src_img_fname, src_img_format)
 
-(dst_rows, dst_cols, dst_stride) = (src_rows, src_cols, src_stride)
+# No scaling for now
+dst_dim = src_dim
 
 generate_user_config(
-    (src_cols, src_rows, src_stride), src_img_format,
-    dst_dir, (dst_cols, dst_rows, dst_stride), dst_img_format, control_point_dim,
+    src_dim, src_img_format,
+    dst_dir, dst_dim, dst_img_format, control_point_dim,
     user_config_fname)
 
 generate_input_data(
@@ -302,9 +352,13 @@ generate_driver_setting(
     dst_dir, user_config_fname, 
     dst_dir, driver_setting_fname)
 
+generate_dbg_setting(dst_dir, dbg_setting_fname)
+
 generate_input_file_location(
-    dst_dir, input_data_fname, user_config_fname, driver_setting_fname, 
+    dst_dir, input_data_fname, user_config_fname, driver_setting_fname, dbg_setting_fname,
     dst_dir, master_location_fname)
+
+show_warpping_result(dst_dir, master_location_fname)
 
 # fig,axes = plt.subplots(1,2)
 # img_src.fwrite(dst_dir, src_fname, ".bin")
