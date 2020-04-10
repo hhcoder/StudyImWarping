@@ -123,7 +123,7 @@ def distance_to_center(xloc, yloc, width_half, height_half):
     idx_dist = math.sqrt((xloc-width_half)**2 + (yloc-height_half)**2)
     diag_dist = math.sqrt(width_half**2 + height_half**2)
     dist =  idx_dist/diag_dist 
-    return math.sqrt(math.cos( dist * math.pi / 4))
+    return math.sqrt(math.cos( dist * math.pi / 3.6))
 
 def ctrl_pts_fish_eye(img_width, img_height, ctrl_cols, ctrl_rows):
     xidx = np.linspace(0, img_width-1, num=ctrl_cols).astype(int)
@@ -154,39 +154,37 @@ def ctrl_pts_rect_grid(img_width, img_height, ctrl_cols, ctrl_rows):
 
 def decode_image_to_binary_format(
     src_dir, src_fname, src_fext, 
-    dst_dir, dst_fname, dst_format, dst_bin_ext=".bin", dst_json_ext=".json"):
+    dst_dir, dst_fname, dst_format, dst_bin_ext=".bin"):
     fpath = os.path.join(src_dir, src_fname + src_fext)
     im = np.array(Image.open(fpath).convert("L"), dtype=np.intc)
     (cols, rows, stride) = (im.shape[1], im.shape[0], im.shape[1])
     with open(os.path.join(dst_dir, dst_fname+dst_bin_ext), "wb") as f:
         im.astype(np.uint8).tofile(f)
-    with open(os.path.join(dst_dir, dst_fname+dst_json_ext), "w") as f:
-        desc = { "width": cols, 
-                 "height": rows, 
-                 "stride": stride, 
-                 "format": "raw8" }
-        json.dump(desc, f, indent=4)
-    return (cols, rows, stride)
+    # with open(os.path.join(dst_dir, dst_fname+dst_json_ext), "w") as f:
+    #     desc = { "width": cols, 
+    #              "height": rows, 
+    #              "stride": stride, 
+    #              "format": "raw8" }
+    #     json.dump(desc, f, indent=4)
+    return {"width": cols, "height": rows, "stride": stride, "format": dst_format}
 
 def generate_user_config(
-    src_img_dim, src_img_format,
-    dst_dir, dst_img_dim, dst_img_format, control_point_dim,
+    src_img_info,
+    dst_dir,dst_img_info, control_point_dim,
     dst_cfg_fname):
 
-    src_pts = ctrl_pts_fish_eye(src_img_dim[0], src_img_dim[1], control_point_dim[0], control_point_dim[1])
+    src_pts = ctrl_pts_fish_eye(
+        src_img_info["width"], src_img_info["height"], 
+        control_point_dim[0], control_point_dim[1])
 
-    dst_pts = ctrl_pts_rect_grid(src_img_dim[0], src_img_dim[1], control_point_dim[0], control_point_dim[1])
+    dst_pts = ctrl_pts_rect_grid(
+        dst_img_info["width"], dst_img_info["height"], 
+        control_point_dim[0], control_point_dim[1])
 
     out_dict = {
         "src":
         {
-            "image_format": 
-            {
-                "width": src_img_dim[0],
-                "height": src_img_dim[1],
-                "stride": src_img_dim[2],
-                "format": src_img_format, 
-            },
+            "image_format": src_img_info,
             "control_points":
             {
                 "cols": control_point_dim[0],
@@ -197,13 +195,7 @@ def generate_user_config(
         },
         "dst":
         {
-            "image_format": 
-            {
-                "width": dst_img_dim[0],
-                "height": dst_img_dim[1],
-                "stride": dst_img_dim[2],
-                "format": dst_img_format
-            },
+            "image_format": dst_img_info,
             "control_points":
             {
                 "cols": control_point_dim[0],
@@ -220,7 +212,7 @@ def generate_user_config(
 def generate_input_data(
     src_dir, src_img_fname,
     dst_dir, dst_img_fname,
-    dst_input_fname):
+    input_data_fname):
     out_dict = {
         "src":
         {
@@ -229,7 +221,6 @@ def generate_input_data(
                 "dir": src_dir,
                 "name": src_img_fname,
                 "bin_ext": ".bin",
-                "json_ext": ".json"
             }
         },
         "dst":
@@ -239,11 +230,10 @@ def generate_input_data(
                 "dir": dst_dir,
                 "name": dst_img_fname,
                 "bin_ext": ".bin",
-                "json_ext": ".json"
             }
         }
     }
-    with open(os.path.join(dst_dir, dst_input_fname+".json"), 'w') as f:
+    with open(os.path.join(dst_dir, input_data_fname+".json"), 'w') as f:
         json.dump(out_dict, f, indent=4)
 
 def generate_driver_setting(
@@ -257,13 +247,17 @@ def generate_driver_setting(
 def generate_dbg_setting(dst_dir, dbg_setting_fname):
     dbg_dict = {
         "dir": dst_dir,
-        "fname": dbg_setting_fname,
-        "fext": ".json" }
+        "dumped_control_points":
+        {
+            "fname": dbg_setting_fname+"_ctrl_pts",
+            "fext": ".json"
+        }
+    }
 
     with open(os.path.join(dst_dir, dbg_setting_fname+".json"), 'w') as f:
         json.dump(dbg_dict, f, indent=4)
 
-def generate_input_file_location( 
+def generate_master_setting( 
     src_dir, 
     input_data_fname, 
     user_config_fname, 
@@ -275,30 +269,82 @@ def generate_input_file_location(
         "input_data": input_data_fname + ".json",
         "user_config": user_config_fname + ".json",
         "driver_setting": driver_setting_fname + ".json",
-        "dbg_setting": dbg_setting_fname + ".json"
+        "debug_setting": dbg_setting_fname + ".json"
     }
     with open(os.path.join(dst_dir, master_location_fname+".json"), 'w') as f:
         json.dump(loc_info, f, indent=4)
 
-def show_warpping_result(dst_dir, master_location_fname):
+def plt_show_and_save(fig, fig_fpath):
+    plt.ion()
+    plt.draw()
+    manager = plt.get_current_fig_manager()
+    manager.full_screen_toggle()
+    plt.show(block=False)
+    plt.pause(0.001)
+    fig.savefig(fig_fpath)
+    plt.close("all")
+
+def show_warpping_result(dst_dir, master_location_fname, dbg_location_fname):
+    np_format_dict = {'raw8': np.uint8,
+                    'float': np.float}
+
     file_location = json.load(open(os.path.join(dst_dir, master_location_fname+".json")))
 
     input_data = json.load(open(os.path.join(file_location["dir"], file_location["input_data"])))
     driver_setting = json.load(open(os.path.join(file_location["dir"], file_location["driver_setting"])))
+    debug_setting = json.load(open(os.path.join(file_location["dir"], file_location["debug_setting"])))
 
-    img_src = img_loader()
-    img_src.read_binary(input_data["src"]["image_bin"]["dir"], input_data["src"]["image_bin"]["name"], ".bin", ".json")
-    img_dst = img_loader()
-    img_dst.read_binary(input_data["dst"]["image_bin"]["dir"], input_data["dst"]["image_bin"]["name"], ".bin", ".json")
+    im_src = np.fromfile(
+        os.path.join(input_data["src"]["image_bin"]["dir"], input_data["src"]["image_bin"]["name"]+input_data["src"]["image_bin"]["bin_ext"]), 
+        np_format_dict[driver_setting["src"]["image_format"]["format"]]).astype(np.intc)
+
+    im_src = np.reshape(
+        im_src, 
+        (driver_setting["src"]["image_format"]["height"], 
+         driver_setting["src"]["image_format"]["width"]))
+
+    im_dst = np.fromfile(
+        os.path.join(input_data["dst"]["image_bin"]["dir"], input_data["dst"]["image_bin"]["name"]+input_data["dst"]["image_bin"]["bin_ext"]), 
+        np_format_dict[driver_setting["dst"]["image_format"]["format"]]).astype(np.intc)
+
+    im_dst = np.reshape(
+        im_dst, 
+        (driver_setting["dst"]["image_format"]["height"], 
+         driver_setting["dst"]["image_format"]["width"]))
+
     fig,axes = plt.subplots(1,2)
-    img_src.show(axes[0])
-    img_dst.show(axes[1])
+    axes[0].imshow(im_src, cmap="gray")
+    axes[1].imshow(im_dst, cmap="gray")
+
+    ctrl_pts_info = json.load(open(os.path.join(debug_setting["dir"], debug_setting["dumped_control_points"]["fname"]+debug_setting["dumped_control_points"]["fext"])))
+    src_x = np.array(ctrl_pts_info["src_x"])
+    src_y = np.array(ctrl_pts_info["src_y"])
+    for j in range(0, src_x.shape[0]):
+        for i in range(0, src_x.shape[1]):
+            axes[0].plot(src_x[j][i], src_y[j][i], "oy")
+
+    dst_x = np.array(ctrl_pts_info["dst_x"])
+    dst_y = np.array(ctrl_pts_info["dst_y"])
+    for j in range(0, dst_x.shape[0]):
+        for i in range(0, dst_x.shape[1]):
+            axes[1].plot(dst_x[j][i], dst_y[j][i], "ob")
+
     # debug_setting = json.load(open(os.path.join(file_location["dir"], file_location["debug_setting"])))
     # debug_result = json.load(open(os.path.join(debug_setting["dir"], debug_setting["fname"]+debug_setting["fext"])))
-    # manager = plt.get_current_fig_manager()
-    # manager.full_screen_toggle()
-    plt.show(block=True)
-    plt.pause(0.001)
+
+    plt_show_and_save(fig, os.path.join(dst_dir, dbg_location_fname + "_result_fig.png"))
+
+
+def warp_process_command_line(master_setting_file_path):
+    SolutionDir = "C:/HHWork/ImWarping/Development/"
+    BuildDir = "build/"
+    Platform = "Win32"
+    Configuration = "Debug"
+    ProjectName = "core_lib"
+    ExecutableExt = ".exe"
+    execute_path = SolutionDir + BuildDir + Platform + "/" + Configuration + "/" + ProjectName + ExecutableExt
+    command_line = execute_path + " " + master_setting_file_path
+    os.system(command_line)
 
 
 #PyDefault
@@ -313,12 +359,12 @@ src_png_ext = ".png"
 dst_dir = "C:/HHWork/ImWarping/Data/Output/Internet/"
 
 src_img_fname = src_png_fname + "_src_img"
-src_img_format = "gray8"
+src_img_format = "raw8"
 
 dst_img_fname = src_png_fname + "_warpped_img"
-dst_img_format = "gray8"
+dst_img_format = "raw8"
 
-control_point_dim = (4, 5)
+control_point_dim = (7, 9)
 
 # generate_all_config(src_dir, src_png_fname, src_png_ex)
 
@@ -329,18 +375,18 @@ user_config_fname = src_png_fname + "_user_config"
 input_data_fname = src_png_fname + "_input_data"
 driver_setting_fname = src_png_fname + "_driver_setting"
 master_location_fname = src_png_fname + "_main"
-dbg_setting_fname = src_png_fname + "_dbg_setting"
+dbg_setting_fname = src_png_fname + "_debug_setting"
 
-src_dim = decode_image_to_binary_format(
+src_img_info = decode_image_to_binary_format(
     src_dir, src_png_fname, src_png_ext, 
     dst_dir, src_img_fname, src_img_format)
 
-# No scaling for now
-dst_dim = src_dim
+# No scaling or color conversion for now
+dst_img_info = src_img_info
 
 generate_user_config(
-    src_dim, src_img_format,
-    dst_dir, dst_dim, dst_img_format, control_point_dim,
+    src_img_info,
+    dst_dir, dst_img_info, control_point_dim,
     user_config_fname)
 
 generate_input_data(
@@ -352,13 +398,21 @@ generate_driver_setting(
     dst_dir, user_config_fname, 
     dst_dir, driver_setting_fname)
 
-generate_dbg_setting(dst_dir, dbg_setting_fname)
+generate_dbg_setting(
+    dst_dir, 
+    dbg_setting_fname)
 
-generate_input_file_location(
-    dst_dir, input_data_fname, user_config_fname, driver_setting_fname, dbg_setting_fname,
+generate_master_setting(
+    dst_dir, 
+    input_data_fname, 
+    user_config_fname, 
+    driver_setting_fname, 
+    dbg_setting_fname,
     dst_dir, master_location_fname)
 
-show_warpping_result(dst_dir, master_location_fname)
+warp_process_command_line(os.path.join(dst_dir, master_location_fname+".json"))
+
+show_warpping_result(dst_dir, master_location_fname, dbg_setting_fname)
 
 # fig,axes = plt.subplots(1,2)
 # img_src.fwrite(dst_dir, src_fname, ".bin")
