@@ -90,7 +90,7 @@ static void warp_proc_gray8(
     {
         for (std::size_t i = 0; i < dst_ctrl_pts_x[0].size()-1; i++)
         {
-            tile_gray8::proc_config_t in_config;
+            tile_gray8::tile_proc_user_config_t in_config;
 
             in_config.src_buf = src_img.data();
 
@@ -122,11 +122,7 @@ static void warp_proc_gray8(
             in_config.dst_p11.x = dst_ctrl_pts_x[j+1][i+1];
             in_config.dst_p11.y = dst_ctrl_pts_y[j+1][i+1];
 
-            using namespace std::literals;
-            tile_gray8::dbg_config_t dbg_config;
-            dbg_config.tile_x_idx_str = "xidx_"s + std::to_string(i) + "_"s;
-            dbg_config.tile_y_idx_str = "yidx_"s + std::to_string(j);
-            tile_gray8::warp_proc(in_config);
+            tile_gray8::tile_warp_proc(in_config);
         }
     }
 }

@@ -5,6 +5,7 @@ import json
 import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.image as pltimage
 import math
 from util import img_loader
 
@@ -251,6 +252,12 @@ def generate_dbg_setting(dst_dir, dbg_setting_fname):
         {
             "fname": dbg_setting_fname+"_ctrl_pts",
             "fext": ".json"
+        },
+        "dumped_png_images":
+        {
+            "src_img_fname": dbg_setting_fname+"_src_img",
+            "dst_img_fname": dbg_setting_fname+"_dst_img",
+            "fext": ".png",
         }
     }
 
@@ -280,7 +287,7 @@ def plt_show_and_save(fig, fig_fpath):
     manager = plt.get_current_fig_manager()
     manager.full_screen_toggle()
     plt.show(block=False)
-    plt.pause(0.001)
+    plt.pause(0.1)
     fig.savefig(fig_fpath)
     plt.close("all")
 
@@ -329,11 +336,19 @@ def show_warpping_result(dst_dir, master_location_fname, dbg_location_fname):
         for i in range(0, dst_x.shape[1]):
             axes[1].plot(dst_x[j][i], dst_y[j][i], "ob")
 
-    # debug_setting = json.load(open(os.path.join(file_location["dir"], file_location["debug_setting"])))
-    # debug_result = json.load(open(os.path.join(debug_setting["dir"], debug_setting["fname"]+debug_setting["fext"])))
-
     plt_show_and_save(fig, os.path.join(dst_dir, dbg_location_fname + "_result_fig.png"))
 
+    im_src_fpath = os.path.join(
+            debug_setting["dir"], 
+            debug_setting["dumped_png_images"]["src_img_fname"]+debug_setting["dumped_png_images"]["fext"])
+
+    pltimage.imsave(im_src_fpath, im_src, cmap='gray')
+
+    im_dst_fpath = os.path.join(
+            debug_setting["dir"], 
+            debug_setting["dumped_png_images"]["dst_img_fname"]+debug_setting["dumped_png_images"]["fext"])
+
+    pltimage.imsave(im_dst_fpath, im_dst, cmap='gray')
 
 def warp_process_command_line(master_setting_file_path):
     SolutionDir = "C:/HHWork/ImWarping/Development/"
@@ -353,10 +368,15 @@ def warp_process_command_line(master_setting_file_path):
 # src_png_ext = ".png"
 # dst_dir = "C:/HHWork/ImWarping/Data/Output/PyDefault/"
 
-src_dir = "C:/HHWork/ImWarping/Data/Input/Internet/" 
-src_png_fname = "girl-with-balloon"
+# src_dir = "C:/HHWork/ImWarping/Data/Input/Internet/" 
+# src_png_fname = "girl-with-balloon"
+# src_png_ext = ".png"
+# dst_dir = "C:/HHWork/ImWarping/Data/Output/Internet/"
+
+src_dir = "C:/HHWork/ImWarping/Data/Input/Grid/" 
+src_png_fname = "grid"
 src_png_ext = ".png"
-dst_dir = "C:/HHWork/ImWarping/Data/Output/Internet/"
+dst_dir = "C:/HHWork/ImWarping/Data/Output/Grid/"
 
 src_img_fname = src_png_fname + "_src_img"
 src_img_format = "raw8"
@@ -413,41 +433,3 @@ generate_master_setting(
 warp_process_command_line(os.path.join(dst_dir, master_location_fname+".json"))
 
 show_warpping_result(dst_dir, master_location_fname, dbg_setting_fname)
-
-# fig,axes = plt.subplots(1,2)
-# img_src.fwrite(dst_dir, src_fname, ".bin")
-# src_tiles = tiles_desc(3, 4)
-# src_tiles.setup_with_ctrl_pts(src_pts)
-
-# img_src.show(axes[0])
-# src_pts.show(axes[0])
-
-# img_dst.show(axes[1])
-
-# img_dst.show(axes[1])
-# dst_pts.show(axes[1])
-
-# plt.ion()
-# plt.draw()
-# manager = plt.get_current_fig_manager()
-# manager.full_screen_toggle()
-# plt.show(block=True)
-# plt.pause(0.001)
-# class tiles_desc:
-#     def __init__(self, cols, rows):
-#         self.t = np.empty((rows, cols, 2, 4), dtype=np.intc)
-    
-#     def rows(self):
-#         return self.t.shape[0]
-#     def cols(self):
-#         return self.t.shape[1]
-
-#     def setup_with_ctrl_pts(self, ctrl_pts):
-#         for j in range(self.rows()):
-#             for i in range (self.cols()):
-#                 xmax = max( (ctrl_pts.x[j][i], ctrl_pts.x[j][i+1], ctrl_pts.x[j+1][i], ctrl_pts.x[j+1][i+1]) )
-#                 xmin = min( (ctrl_pts.x[j][i], ctrl_pts.x[j][i+1], ctrl_pts.x[j+1][i], ctrl_pts.x[j+1][i+1]) )
-#                 ymax = max( (ctrl_pts.y[j][i], ctrl_pts.y[j][i+1], ctrl_pts.y[j+1][i], ctrl_pts.y[j+1][i+1]) )
-#                 ymin = min( (ctrl_pts.y[j][i], ctrl_pts.y[j][i+1], ctrl_pts.y[j+1][i], ctrl_pts.y[j+1][i+1]) )
-#                 self.t[j, i, 0, :] = [xmin, xmax, ymin, ymax]
-
