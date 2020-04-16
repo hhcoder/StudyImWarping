@@ -4,6 +4,7 @@ import json
 import os
 from PIL import Image
 from scipy.spatial import distance 
+import math
 
 # empty_image = np.ones((112, 112, 3), dtype=np.intc)
 
@@ -51,12 +52,21 @@ def plot_dot(axes, pt, color_format="o"):
 def perpendicular(vec):
     return (-vec[1], vec[0])
 
+# distance from (x0, y0) to line seg [(x1,y1) to (x2, y2)]
+def distance_point_to_line_seg(x0, y0, x1, y1, x2, y2):
+    return abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) / math.sqrt((y2-y1)**2+(x2-x1)**2)
+
 def Bierer_Neely_Algo(P, Q, Ppr, Qpr, X):
     u = np.divide( np.dot(np.subtract(X,P), np.subtract(Q,P)) , np.square(distance.euclidean(Q,P)) )
     v = np.divide( np.dot(np.subtract(X,P), perpendicular(np.subtract(Q,P))), distance.euclidean(Q,P) )
 
     Xpr = Ppr + np.multiply(u,np.subtract(Qpr, Ppr)) + np.divide(np.multiply(v, perpendicular(np.subtract(Qpr,Ppr))), distance.euclidean(Qpr, Ppr))
-    return Xpr
+
+    d = distance_point_to_line_seg(Xpr[0], Xpr[1], Ppr[0], Ppr[1], Qpr[0], Qpr[1])
+    
+    return {"x": Xpr[0],
+            "y": Xpr[1],
+            "d": d }
 
 src_dir = "../../Data/Input/FR-01/"
 src_inf_fname = "INF_2020-03-18-04-55-32-411"
@@ -73,29 +83,77 @@ dst_landmark = {
 
 Qpr = (src_inf["NIR parameter"]["LM"][0]["x"], src_inf["NIR parameter"]["LM"][0]["y"])
 Ppr = (src_inf["NIR parameter"]["LM"][2]["x"], src_inf["NIR parameter"]["LM"][2]["y"])
+
+src_landmark = {
+    "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
+          src_inf["NIR parameter"]["LM"][1]["x"], 
+          src_inf["NIR parameter"]["LM"][2]["x"],
+          src_inf["NIR parameter"]["LM"][3]["x"],
+          src_inf["NIR parameter"]["LM"][4]["x"]],
+    "y": [src_inf["NIR parameter"]["LM"][0]["y"], 
+          src_inf["NIR parameter"]["LM"][1]["y"], 
+          src_inf["NIR parameter"]["LM"][2]["y"],
+          src_inf["NIR parameter"]["LM"][3]["y"],
+          src_inf["NIR parameter"]["LM"][4]["y"]] }
+
+# Landmark location definition:
+# Q0          Q1 (left eye, right eye)
+#       P        (nose)
+#   Q3     Q4    (left lip, right lip)
  
-Q = (dst_landmark["x"][0], dst_landmark["y"][0])
+Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
+Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
 P = (dst_landmark["x"][2], dst_landmark["y"][2])
-X = (0, 0)
+Q3 = (dst_landmark["x"][3], dst_landmark["y"][3])
+Q4 = (dst_landmark["x"][4], dst_landmark["y"][4])
 
-# u = np.divide( np.dot(np.subtract(X,P), np.subtract(Q,P)) , np.square(distance.euclidean(Q,P)) )
-# v = np.divide( np.dot(np.subtract(X,P), perpendicular(np.subtract(Q,P))), distance.euclidean(Q,P) )
+Qpr0 = (src_landmark["x"][0], src_landmark["y"][0])
+Qpr1 = (src_landmark["x"][1], src_landmark["y"][1])
+Ppr = (src_landmark["x"][2], src_landmark["y"][2])
+Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
+Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
 
-# Xpr = Ppr + np.multiply(u,np.subtract(Qpr, Ppr)) + np.divide(np.multiply(v, perpendicular(np.subtract(Qpr,Ppr))), distance.euclidean(Qpr, Ppr))
+xv, yv = np.meshgrid(np.linspace(0,120,6), np.linspace(0,120,6))
 
-Xpr = Bierer_Neely_Algo(P, Q, Ppr, Qpr, X)
+num_points = sum(len(xv) for x in xv)
 
-fig, axes = plt.subplots(2,1)
+Xs = { "x": xv.flatten(), 
+       "y": yv.flatten() }
 
-axes[0].imshow(src_img, cmap="gray")
-plot_dot(axes[0], Qpr, "ro")
-plot_dot(axes[0], Ppr, "bo")
+xpr = np.zeros(num_points)
+ypr = np.zeros(num_points)
 
-axes[1].imshow(dst_img, cmap="gray")
-plot_dot(axes[1], Q, "ro")
-plot_dot(axes[1], P, "bo")
-plot_dot(axes[1], X, "go")
+for i in range(num_points):
+    X = (Xs["x"][i], Xs["y"][i])
+    v0 = Bierer_Neely_Algo(P, Q0, Ppr, Qpr0, X)
+    v1 = Bierer_Neely_Algo(P, Q1, Ppr, Qpr1, X)
+    v2 = Bierer_Neely_Algo(P, Q3, Ppr, Qpr3, X)
+    v3 = Bierer_Neely_Algo(P, Q4, Ppr, Qpr4, X)
 
-plot_dot(axes[0], Xpr, "r*")
+    weight = (v0["d"], v1["d"], v2["d"], v3["d"])
+    xpr[i] = sum( np.multiply( (v0["x"], v1["x"], v2["x"], v3["x"]), weight) ) / sum(weight)
+    ypr[i] = sum( np.multiply( (v0["y"], v1["y"], v2["y"], v3["y"]), weight) ) / sum(weight)
+
+Xprs = {"x": xpr,
+        "y": ypr}
+
+fig, axes = plt.subplots(1,2)
+
+axes[0].imshow(dst_img, cmap="gray")
+axes[0].set_title("Dst")
+dst_lm_x = (Q0[0], Q1[0], P[0], Q3[0], Q4[0])
+dst_lm_y = (Q0[1], Q1[1], P[1], Q3[1], Q4[1])
+axes[0].plot(dst_lm_x, dst_lm_y, "ro")
+axes[0].plot(Xs["x"], Xs["y"], "b*")
+
+axes[1].imshow(src_img, cmap="gray")
+src_lm_x = (Qpr0[0], Qpr1[0], Ppr[0], Qpr3[0], Qpr4[0])
+src_lm_y = (Qpr0[1], Qpr1[1], Ppr[1], Qpr3[1], Qpr4[1])
+axes[1].plot(src_lm_x, src_lm_y, "ro")
+axes[1].plot(Xprs["x"], Xprs["y"], "g*")
+
 
 plt_show(fig)
+
+
+

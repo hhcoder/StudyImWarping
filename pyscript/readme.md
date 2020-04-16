@@ -112,3 +112,23 @@ DisplayModule
         "y1": [...]
     }
 }
+
+# FR part
+
+## Bierer-Neely Algorithm
+
+## Mixing between points
+
+## Flow
+
+Goal:
+for each point in DST Xs:[X0, X1, ..., Xn]
+find SRC Xprs:[Xpr0, Xpr1, ..., Xprn]
+
+1) define 4 lines (P0-P2), (P1-P2), (P3-P2), (P4-P2)
+
+2) for each point, we calculate the 
+    4 Xpr, relative to line segment (P0-P2), (P1-P2), (P3-P2), (P4-P2)
+    4 Dpr, relative to line segment (P0-P2), (P1-P2), (P3-P2), (P4-P2)
+
+3) combine the 4 Xpr and 4 Dpr, find the final Xpr 
