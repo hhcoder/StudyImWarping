@@ -75,14 +75,15 @@ src_img_fname = "NIR_2020-03-18-04-55-32-411"
 src_inf = read_inf(src_dir, src_inf_fname)
 src_img = read_img(src_dir, src_img_fname)
 
-dst_img = 255 * np.ones((112,112), dtype=np.uint8)
+dst_img_width = 120
+dst_img_height = 120
+dst_tile_hor_count = 6
+dst_tile_ver_count = 6
+
 dst_landmark = {
     "x": [30.2946, 65.5318, 48.0252, 33.5493, 62.7299],
     "y": [51.6963, 51.5014, 71.7366, 92.3655, 92.2041] 
 }
-
-Qpr = (src_inf["NIR parameter"]["LM"][0]["x"], src_inf["NIR parameter"]["LM"][0]["y"])
-Ppr = (src_inf["NIR parameter"]["LM"][2]["x"], src_inf["NIR parameter"]["LM"][2]["y"])
 
 src_landmark = {
     "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
@@ -113,44 +114,55 @@ Ppr = (src_landmark["x"][2], src_landmark["y"][2])
 Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
 Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
 
-xv, yv = np.meshgrid(np.linspace(0,120,6), np.linspace(0,120,6))
+xv, yv = np.meshgrid(np.linspace(0,dst_img_height,dst_tile_ver_count), np.linspace(0,dst_img_width,dst_tile_hor_count))
+(rows, cols) = xv.shape
 
 num_points = sum(len(xv) for x in xv)
 
-Xs = { "x": xv.flatten(), 
-       "y": yv.flatten() }
+xpr = np.zeros((rows, cols))
+ypr = np.zeros((rows, cols))
 
-xpr = np.zeros(num_points)
-ypr = np.zeros(num_points)
+for j in range(rows):
+    for i in range(cols):
+        X = (xv[j][i], yv[j][i])
+        v0 = Bierer_Neely_Algo(P, Q0, Ppr, Qpr0, X)
+        v1 = Bierer_Neely_Algo(P, Q1, Ppr, Qpr1, X)
+        v2 = Bierer_Neely_Algo(P, Q3, Ppr, Qpr3, X)
+        v3 = Bierer_Neely_Algo(P, Q4, Ppr, Qpr4, X)
 
-for i in range(num_points):
-    X = (Xs["x"][i], Xs["y"][i])
-    v0 = Bierer_Neely_Algo(P, Q0, Ppr, Qpr0, X)
-    v1 = Bierer_Neely_Algo(P, Q1, Ppr, Qpr1, X)
-    v2 = Bierer_Neely_Algo(P, Q3, Ppr, Qpr3, X)
-    v3 = Bierer_Neely_Algo(P, Q4, Ppr, Qpr4, X)
+        weight = (v0["d"], v1["d"], v2["d"], v3["d"])
+        xpr[j][i] = sum( np.multiply( (v0["x"], v1["x"], v2["x"], v3["x"]), weight) ) / sum(weight)
+        ypr[j][i] = sum( np.multiply( (v0["y"], v1["y"], v2["y"], v3["y"]), weight) ) / sum(weight)
 
-    weight = (v0["d"], v1["d"], v2["d"], v3["d"])
-    xpr[i] = sum( np.multiply( (v0["x"], v1["x"], v2["x"], v3["x"]), weight) ) / sum(weight)
-    ypr[i] = sum( np.multiply( (v0["y"], v1["y"], v2["y"], v3["y"]), weight) ) / sum(weight)
+desc = { "Xs": { "cols": cols,
+                 "rows": rows,
+                 "x": xv.tolist(), 
+                 "y": yv.tolist()},
+        "Xprs": { "cols": cols,
+                  "rows": rows,
+                  "x": xpr.tolist(),
+                  "y": ypr.tolist() } } 
 
-Xprs = {"x": xpr,
-        "y": ypr}
+# Xprs = {"cols": cols,
+#         "rows": rows,
+#         "x": xpr,
+#         "y": ypr}
 
 fig, axes = plt.subplots(1,2)
 
+dst_img = 255 * np.ones((dst_img_height,dst_img_width), dtype=np.uint8)
 axes[0].imshow(dst_img, cmap="gray")
 axes[0].set_title("Dst")
 dst_lm_x = (Q0[0], Q1[0], P[0], Q3[0], Q4[0])
 dst_lm_y = (Q0[1], Q1[1], P[1], Q3[1], Q4[1])
 axes[0].plot(dst_lm_x, dst_lm_y, "ro")
-axes[0].plot(Xs["x"], Xs["y"], "b*")
+axes[0].plot(xv, yv, "b*")
 
 axes[1].imshow(src_img, cmap="gray")
 src_lm_x = (Qpr0[0], Qpr1[0], Ppr[0], Qpr3[0], Qpr4[0])
 src_lm_y = (Qpr0[1], Qpr1[1], Ppr[1], Qpr3[1], Qpr4[1])
 axes[1].plot(src_lm_x, src_lm_y, "ro")
-axes[1].plot(Xprs["x"], Xprs["y"], "g*")
+axes[1].plot(xpr, ypr, "g*")
 
 
 plt_show(fig)
