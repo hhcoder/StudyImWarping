@@ -5,13 +5,13 @@ import matplotlib.patches as patches
 import matplotlib.image as pltimage
 import os
 
-def plt_show(fig, show_fig="False"):
+def plt_show(fig):
     plt.ion()
     manager = plt.get_current_fig_manager()
     manager.full_screen_toggle()
     plt.draw()
     plt.pause(0.1)
-    plt.show(block=show_fig)
+    plt.show(block=False)
 
 def show(dst_dir, master_location_fname, dbg_location_fname):
     np_format_dict = {'raw8': np.uint8,
@@ -72,4 +72,6 @@ def show(dst_dir, master_location_fname, dbg_location_fname):
             debug_setting["dumped_png_images"]["dst_img_fname"]+debug_setting["dumped_png_images"]["fext"])
 
     pltimage.imsave(im_dst_fpath, im_dst, cmap='gray')
+
+    return fig, axes
 

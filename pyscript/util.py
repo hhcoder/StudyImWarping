@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import matplotlib.image as mpimg
@@ -54,3 +55,12 @@ class img_loader:
 
     def show(self, axes):
         axes.imshow(self.im, cmap="gray")
+
+def plt_show(full_screen = True):
+    plt.ion()
+    if full_screen:
+        manager = plt.get_current_fig_manager()
+        manager.full_screen_toggle()
+    plt.draw()
+    plt.pause(0.1)
+    plt.show(block=False)

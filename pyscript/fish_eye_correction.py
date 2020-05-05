@@ -36,12 +36,10 @@ def ctrl_pts_rect_grid(img_width, img_height, ctrl_cols, ctrl_rows):
     yidx = np.linspace(0, img_height-1, num=ctrl_rows).astype(int)
     x = np.empty((ctrl_rows, ctrl_cols),dtype=np.intc)
     y = np.empty((ctrl_rows, ctrl_cols),dtype=np.intc)
-    n = 0
     for j in range(0, ctrl_rows):
         for i in range(0, ctrl_cols):
             x[j][i] = xidx[i]
             y[j][i] = yidx[j]
-            n = n+1
     return {"x": x, "y": y}
 
 
