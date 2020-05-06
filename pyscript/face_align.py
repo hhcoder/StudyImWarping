@@ -40,15 +40,26 @@ def mid_point(x0, y0, x1, y1):
     return ((x0+x1)/2, (y0+y1)/2)
 
 def euclidean_dist(P0, P1):
-    distance_point_to_point(P0[0], P0[1], P1[0], P1[1])
+    return distance_point_to_point(P0[0], P0[1], P1[0], P1[1])
 
 def Bierer_Neely_Algo(P, Q, Ppr, Qpr, X):
-    u = np.divide( np.dot(np.subtract(X,P), np.subtract(Q,P)) , np.square(distance.euclidean(Q,P)) )
-    v = np.divide( np.dot(np.subtract(X,P), perpendicular(np.subtract(Q,P))), distance.euclidean(Q,P) )
+    u = np.divide( np.dot(np.subtract(X,P), np.subtract(Q,P)) , np.square(euclidean_dist(Q,P)) )
+    v = np.divide( np.dot(np.subtract(X,P), perpendicular(np.subtract(Q,P))), euclidean_dist(Q,P) )
 
-    Xpr = Ppr + np.multiply(u,np.subtract(Qpr, Ppr)) + np.divide(np.multiply(v, perpendicular(np.subtract(Qpr,Ppr))), distance.euclidean(Qpr, Ppr))
+    t1 = np.multiply(u,np.subtract(Qpr, Ppr))
+    t2 = np.divide(np.multiply(v, perpendicular(np.subtract(Qpr,Ppr))), euclidean_dist(Q, P))
+    Xpr = Ppr + t1 + t2
 
-    d = distance_point_to_line_seg(X[0], X[1], P[0], P[1], Q[0], Q[1])
+    #d = distance_point_to_line_seg(X[0], X[1], P[0], P[1], Q[0], Q[1])
+    #if u > 0 and u < 1:
+    #    d = abs(v)
+    #elif u <= 0:
+    #    d = distance_point_to_point(P[0], P[1], X[0], X[1])
+    #else:
+    #    d = distance_point_to_point(Q[0], Q[1], X[0], X[1])
+
+    d = distance_point_to_point(Q[0], Q[1], X[0], X[1])
+
     l = math.sqrt((P[0]-Q[0])**2 + (P[1]-Q[1])**2)
     pq_mid = mid_point(P[0], P[1], Q[0], Q[1])
     f = distance_point_to_point(pq_mid[0], pq_mid[1], X[0], X[1])
@@ -112,17 +123,18 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
             cloness = (v0["c"], v1["c"], v2["c"], v3["c"])
             cloness_scale = np.divide(np.subtract(cloness, np.min(cloness)), np.max(cloness)-np.min(cloness))
             length = (v0["l"], v1["l"], v2["l"], v3["l"])
-            a = 0.001
-            b = 3
+            a = 0.1
+            b = 2
             p = 0
-            weight = np.power(np.divide(np.power(length, p), np.add(a, farness)), b)
+            #weight = np.power(np.divide(np.power(length, p), np.add(a, dist)), b)
             # weight = np.exp(np.negative(np.power(farness_scale, 2) ))
             # weight = np.divide(np.max(farness), farness)
             # weight = np.power(np.divide(np.max(farness), farness), 4) #lip works in this one
             #weight = np.power(np.divide(np.max(farness_scale), farness_scale), 4) #lip works in this one
             # weight = np.power(np.divide(np.min(cloness), cloness), 4) 
             # weight = np.exp(np.negative(np.power(cloness_scale, 2) ))
-            # weight = np.exp(np.negative(np.divide(np.power(farness_scale, 2), 0.3))) #Almost working version
+            weight = np.exp(np.negative(np.divide(np.power(dist_scale, 2), 0.25))) #Almost working version
+            # weight = (1, 1, 1, 1)
             # weight = np.power(np.divide(np.max(dist_scale), dist_scale), 4)
             # weight = np.power(np.divide(np.max(dist_scale), dist_scale), 4)
             # idx_min = np.argmax(weight)
@@ -134,8 +146,8 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
             ypr[j][i] = sum( np.multiply(ly, weight) ) / sum(weight)
             #xpr[j][i] = lx[idx_min]
             #ypr[j][i] = ly[idx_min]
-            xpr[j][i] = v0["x"]
-            ypr[j][i] = v0["y"]
+            # xpr[j][i] = v3["x"]
+            # ypr[j][i] = v3["y"]
 
     return { "x": xpr,
              "y": ypr }  
@@ -147,21 +159,27 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
 
 #dst_dir = "../../Data/Output/FR-01/"
 
-src_dir = "../../Data/Input/FR-02/"
-src_inf_fname = "INF_2020-02-04_01-40-46"
-src_png_fname = "NIR_2020-02-04_01-40-46"
+#src_dir = "../../Data/Input/FR-02/"
+#src_inf_fname = "INF_2020-02-04_01-40-46"
+#src_png_fname = "NIR_2020-02-04_01-40-46"
+#src_png_ext = ".png"
+
+#dst_dir = "../../Data/Output/FR-02/"
+
+src_dir = "../../Data/Input/FR-03/"
+src_inf_fname = "INF_20200307_163238"
+src_png_fname = "IMG_20200307_163238"
 src_png_ext = ".png"
 
-dst_dir = "../../Data/Output/FR-02/"
-
+dst_dir = "../../Data/Output/FR-03/"
 
 src_img_fname = src_png_fname + "_src_img"
 src_img_format = "raw8"
 
 dst_img_width = 112 
-dst_img_height = 112 
-dst_tile_hor_count = 14 
-dst_tile_ver_count = 14 
+dst_img_height = 112
+dst_tile_hor_count = 7 
+dst_tile_ver_count = 7 
 dst_img_format = "raw8"
 
 dst_img_fname = src_png_fname + "_warpped_img"
@@ -198,10 +216,8 @@ dst_landmark = {
     "x": np.array([38.2946, 73.5318, 56.0252, 41.5493, 70.7299]),
     "y": np.array([51.6963, 51.5014, 71.7366, 92.3655, 92.2041]) }
 
-#dst_landmark = {
-#    "x": np.array([40, 80, 60, 47, 73]),
-#    "y": np.array([50, 50, 70, 90, 90])
-#}
+#dst_landmark["x"] = np.multiply(dst_landmark["x"], 480/112)
+#dst_landmark["y"] = np.multiply(dst_landmark["y"], 480/112)
 
 src_inf = read_inf(src_dir, src_inf_fname)
 src_landmark = {
@@ -215,6 +231,9 @@ src_landmark = {
           src_inf["NIR parameter"]["LM"][2]["y"],
           src_inf["NIR parameter"]["LM"][3]["y"],
           src_inf["NIR parameter"]["LM"][4]["y"]] }
+
+# dst_landmark["x"] = src_landmark["x"]
+# dst_landmark["y"] = src_landmark["y"]
 
 src_pts = ctrl_pts_bierer_neely(
     dst_pts,
