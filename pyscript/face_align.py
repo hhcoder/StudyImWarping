@@ -39,6 +39,16 @@ def distance_point_to_point(x0, y0, x1, y1):
 def mid_point(x0, y0, x1, y1):
     return ((x0+x1)/2, (y0+y1)/2)
 
+def find_point_by_ratio(p0, p1, ratio_from_0):
+    if ratio_from_0 > 1.0:
+        return "None"
+    return (p0[0]+(p1[0]-p0[0])*ratio_from_0, p0[1]+(p1[1]-p0[1])*ratio_from_0)
+
+def find_ratio_01_12(p0, p1, p2):
+    d01 = distance_point_to_point(p0[0], p0[1], p1[0], p1[1]);
+    d12 = distance_point_to_point(p1[0], p1[1], p2[0], p2[1]);
+    return d01 / (d01+d12)
+
 def euclidean_dist(P0, P1):
     return distance_point_to_point(P0[0], P0[1], P1[0], P1[1])
 
@@ -96,12 +106,9 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
     Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
     Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
 
-    # xv, yv = np.meshgrid(np.linspace(0,dst_img_height,dst_tile_ver_count), np.linspace(0,dst_img_width,dst_tile_hor_count))
     xv = dst_pts["x"]
     yv = dst_pts["y"]
     (rows, cols) = xv.shape
-
-    # num_points = sum(len(xv) for x in xv)
 
     xpr = np.zeros(xv.shape)
     ypr = np.zeros(xv.shape)
@@ -133,7 +140,7 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
             #weight = np.power(np.divide(np.max(farness_scale), farness_scale), 4) #lip works in this one
             # weight = np.power(np.divide(np.min(cloness), cloness), 4) 
             # weight = np.exp(np.negative(np.power(cloness_scale, 2) ))
-            weight = np.exp(np.negative(np.divide(np.power(dist_scale, 2), 0.25))) #Almost working version
+            weight = np.exp(np.negative(np.divide(np.power(cloness_scale, 2), 0.05))) #Almost working version
             # weight = (1, 1, 1, 1)
             # weight = np.power(np.divide(np.max(dist_scale), dist_scale), 4)
             # weight = np.power(np.divide(np.max(dist_scale), dist_scale), 4)
@@ -146,18 +153,203 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
             ypr[j][i] = sum( np.multiply(ly, weight) ) / sum(weight)
             #xpr[j][i] = lx[idx_min]
             #ypr[j][i] = ly[idx_min]
-            # xpr[j][i] = v3["x"]
-            # ypr[j][i] = v3["y"]
+            xpr[j][i] = v3["x"]
+            ypr[j][i] = v3["y"]
 
     return { "x": xpr,
              "y": ypr }  
 
-#src_dir = "../../Data/Input/FR-01/"
-#src_inf_fname = "INF_2020-03-18-04-55-32-411"
-#src_png_fname = "NIR_2020-03-18-04-55-32-411"
+def ctrl_pts_bierer_neely_adv( dst_pts, src_landmark, dst_landmark):
+    Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
+    Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
+    P = (dst_landmark["x"][2], dst_landmark["y"][2])
+    Q3 = (dst_landmark["x"][3], dst_landmark["y"][3])
+    Q4 = (dst_landmark["x"][4], dst_landmark["y"][4])
+
+    Qpr0 = (src_landmark["x"][0], src_landmark["y"][0])
+    Qpr1 = (src_landmark["x"][1], src_landmark["y"][1])
+    Ppr = (src_landmark["x"][2], src_landmark["y"][2])
+    Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
+    Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
+
+    xv = dst_pts["x"]
+    yv = dst_pts["y"]
+    (rows, cols) = xv.shape
+
+    xpr = np.zeros(xv.shape)
+    ypr = np.zeros(xv.shape)
+
+    for j in range(rows):
+        for i in range(cols):
+            X = (xv[j][i], yv[j][i])
+            v0 = Bierer_Neely_Algo(P, Q0, Ppr, Qpr0, X)
+            v1 = Bierer_Neely_Algo(P, Q1, Ppr, Qpr1, X)
+            v2 = Bierer_Neely_Algo(P, Q3, Ppr, Qpr3, X)
+            v3 = Bierer_Neely_Algo(P, Q4, Ppr, Qpr4, X)
+            v4 = Bierer_Neely_Algo(Q0, Q1, Qpr0, Qpr1, X)
+            v5 = Bierer_Neely_Algo(Q0, Q3, Qpr0, Qpr3, X)
+            v6 = Bierer_Neely_Algo(Q1, Q3, Qpr1, Qpr3, X)
+            v7 = Bierer_Neely_Algo(Q3, Q4, Qpr3, Qpr4, X)
+
+            lx = (v0["x"], v1["x"], v2["x"], v3["x"], v4["x"], v5["x"], v6["x"], v7["x"])
+            ly = (v0["y"], v1["y"], v2["y"], v3["y"], v4["y"], v5["y"], v6["y"], v7["y"])
+            dist = (v0["d"], v1["d"], v2["d"], v3["d"], v4["d"], v5["d"], v6["d"], v7["d"])
+            dist_scale = np.divide(np.subtract(dist, np.min(dist)), np.max(dist)-np.min(dist))
+            farness = (v0["f"], v1["f"], v2["f"], v3["f"], v4["f"], v5["f"], v6["f"], v7["f"])
+            farness_scale = np.divide(np.subtract(farness, np.min(farness)), np.max(farness)-np.min(farness))
+            weight = np.exp(np.negative(np.divide(np.power(farness_scale, 2), 0.2))) #Almost working version
+            weight = (1,1,1,1,1,1,1,1)
+            xpr[j][i] = sum( np.multiply(lx, weight) ) / sum(weight)
+            ypr[j][i] = sum( np.multiply(ly, weight) ) / sum(weight)
+
+    return { "x": xpr,
+             "y": ypr }  
+
+def find_ext_pt(p0, p1, ratio):
+    return (p1[0] + (p1[0]-p0[0])*(ratio), p1[1] + (p1[1]-p0[1])*ratio )
+
+def find_proj_from_C_to_AB(A,B,C):
+    Ax=A[0]
+    Ay=A[1]
+    Bx=B[0]
+    By=B[1]
+    Cx=C[0]
+    Cy=C[1]
+
+    t = ((Cx-Ax)*(Bx-Ax)+(Cy-Ay)*(By-Ay)) / ((Bx-Ax)**2 + (By-Ay)**2)
+
+    Dx = Ax + t * (Bx-Ax)
+    Dy = Ay + t * (By-Ay)
+    return (Dx, Dy)
+
+def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
+    Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
+    Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
+    P = (dst_landmark["x"][2], dst_landmark["y"][2])
+    Q3 = (dst_landmark["x"][3], dst_landmark["y"][3])
+    Q4 = (dst_landmark["x"][4], dst_landmark["y"][4])
+
+    Qpr0 = (src_landmark["x"][0], src_landmark["y"][0])
+    Qpr1 = (src_landmark["x"][1], src_landmark["y"][1])
+    Ppr = (src_landmark["x"][2], src_landmark["y"][2])
+    Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
+    Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
+
+    xv = dst_pts["x"]
+    yv = dst_pts["y"]
+    (rows, cols) = xv.shape
+
+    if rows != 7 or cols !=7:
+        print("HT algo works only for 7x7")
+        return "None"
+
+    xpr = np.zeros(xv.shape)
+    ypr = np.zeros(xv.shape)
+
+    p32 = Qpr0
+    xpr[3][2] = p32[0]
+    ypr[3][2] = p32[1]
+
+    p34 = Qpr1
+    xpr[3][4] = p34[0]
+    ypr[3][4] = p34[1]
+
+    p33 = mid_point(xpr[3][2], ypr[3][2], xpr[3][4], ypr[3][4])
+    xpr[3][3] = p33[0]
+    ypr[3][3] = p33[1]
+
+    p31 = find_ext_pt(p33, p32, 1)
+    (xpr[3][1], ypr[3][1]) = p31
+
+    p30 = find_ext_pt(p32, p31, 1)
+    (xpr[3][0], ypr[3][0]) = p30
+
+    p35 = find_ext_pt(p33, p34, 1)
+    (xpr[3][5], ypr[3][5]) = p35
+
+    p36 = find_ext_pt(p34, p35, 1)
+    (xpr[3][6], ypr[3][6]) = p36
+
+    p53 = mid_point(Qpr3[0], Qpr3[1], Qpr4[0], Qpr4[1])
+    (xpr[5][3],ypr[5][3]) = p53
+
+    p52 = find_ext_pt(p53, Qpr3, 7/13)
+    (xpr[5][2], ypr[5][2]) = p52
+
+    p54 = find_ext_pt(p53, Qpr4, 7/13)
+    (xpr[5][4], ypr[5][4]) = p54
+
+    p51 = find_ext_pt(p53, p52, 1)
+    (xpr[5][1], ypr[5][1]) = p51
+
+    p50 = find_ext_pt(p52, p51, 1)
+    (xpr[5][0], ypr[5][0]) = p50
+
+    p55 = find_ext_pt(p53, p54, 1)
+    (xpr[5][5], ypr[5][5]) = p55
+
+    p56 = find_ext_pt(p54, p55, 1)
+    (xpr[5][6], ypr[5][6]) = p56
+
+    p43 = Ppr
+    (xpr[4][3],ypr[4][3]) = p43
+
+    r33to43 = find_ratio_01_12(p33, p43, p53)
+    p42 = find_point_by_ratio(p32, p52, r33to43)
+    (xpr[4][2], ypr[4][2]) = p42
+
+    p44 = find_point_by_ratio(p34, p54, r33to43)
+    (xpr[4][4],ypr[4][4]) = p44
+
+    p41 = find_ext_pt(p43, p42, 1)
+    (xpr[4][1], ypr[4][1]) = p41
+
+    p40 = find_ext_pt(p42, p41, 1)
+    (xpr[4][0], ypr[4][0]) = p40
+
+    p45 = find_ext_pt(p43, p44, 1)
+    (xpr[4][5], ypr[4][5]) = p45
+
+    p46 = find_ext_pt(p44, p45, 1)
+    (xpr[4][6], ypr[4][6]) = p46
+
+    p20 = find_ext_pt(p40, p30, 1)
+    (xpr[2][0], ypr[2][0]) = p20
+    p10 = find_ext_pt(p30, p20, 1)
+    (xpr[1][0], ypr[1][0]) = p10
+    p00 = find_ext_pt(p20, p10, 1)
+    (xpr[0][0], ypr[0][0]) = p00
+
+    p21 = find_ext_pt(p41, p31, 1)
+    (xpr[2][1], ypr[2][1]) = p21
+    p11 = find_ext_pt(p31, p21, 1)
+    (xpr[1][1], ypr[1][1]) = p11
+    p01 = find_ext_pt(p21, p11, 1)
+    (xpr[0][1], ypr[0][1]) = p01
+
+    p22 = find_ext_pt(p42, p32, 1)
+    (xpr[2][2], ypr[2][2]) = p22
+    p12 = find_ext_pt(p32, p22, 1)
+    (xpr[1][2], ypr[1][2]) = p12
+    p02 = find_ext_pt(p22, p12, 1)
+    (xpr[0][2], ypr[0][2]) = p02
+
+    p60 = find_ext_pt(p40, p50, 1)
+    (xpr[6][0], ypr[6][0]) = p60
+    p61 = find_ext_pt(p41, p51, 1)
+    (xpr[6][1], ypr[6][1]) = p61
+    p62 = find_ext_pt(p42, p52, 1)
+    (xpr[6][2], ypr[6][2]) = p62
+
+    return { "x": xpr,
+             "y": ypr }  
+
+#src_dir = "../../data/input/fr-01/"
+#src_inf_fname = "inf_2020-03-18-04-55-32-411"
+#src_png_fname = "nir_2020-03-18-04-55-32-411"
 #src_png_ext = ".png"
 
-#dst_dir = "../../Data/Output/FR-01/"
+#dst_dir = "../../data/output/fr-01/"
 
 #src_dir = "../../Data/Input/FR-02/"
 #src_inf_fname = "INF_2020-02-04_01-40-46"
@@ -235,7 +427,7 @@ src_landmark = {
 # dst_landmark["x"] = src_landmark["x"]
 # dst_landmark["y"] = src_landmark["y"]
 
-src_pts = ctrl_pts_bierer_neely(
+src_pts = ctrl_pts_ht(
     dst_pts,
     src_landmark,
     dst_landmark)
