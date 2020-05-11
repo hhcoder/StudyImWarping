@@ -36,8 +36,12 @@ def distance_point_to_line_seg(x0, y0, x1, y1, x2, y2):
 def distance_point_to_point(x0, y0, x1, y1):
     return math.sqrt((x0-x1)**2+(y0-y1)**2)
 
+# todo: use p0, p1 instead of x0y0, x1y1
 def mid_point(x0, y0, x1, y1):
     return ((x0+x1)/2, (y0+y1)/2)
+
+def find_mid_point(p0, p1):
+    return ((p0[0]+p1[0])/2, (p0[1]+p1[1])/2)
 
 def find_point_by_ratio(p0, p1, ratio_from_0):
     if ratio_from_0 > 1.0:
@@ -111,7 +115,7 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
     (rows, cols) = xv.shape
 
     xpr = np.zeros(xv.shape)
-    ypr = np.zeros(xv.shape)
+    ypr = np.zeros(yv.shape)
 
     for j in range(rows):
         for i in range(cols):
@@ -177,7 +181,7 @@ def ctrl_pts_bierer_neely_adv( dst_pts, src_landmark, dst_landmark):
     (rows, cols) = xv.shape
 
     xpr = np.zeros(xv.shape)
-    ypr = np.zeros(xv.shape)
+    ypr = np.zeros(yv.shape)
 
     for j in range(rows):
         for i in range(cols):
@@ -207,6 +211,12 @@ def ctrl_pts_bierer_neely_adv( dst_pts, src_landmark, dst_landmark):
 
 def find_ext_pt(p0, p1, ratio):
     return (p1[0] + (p1[0]-p0[0])*(ratio), p1[1] + (p1[1]-p0[1])*ratio )
+
+def find_offset(p0, p1):
+    return (p1[0]-p0[0], p1[1]-p0[1])
+
+def add_offset(p0, offset):
+    return (p0[0]+offset[0], p0[1]+offset[1])
 
 def find_proj_from_C_to_AB(A,B,C):
     Ax=A[0]
@@ -244,7 +254,7 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
         return "None"
 
     xpr = np.zeros(xv.shape)
-    ypr = np.zeros(xv.shape)
+    ypr = np.zeros(yv.shape)
 
     p32 = Qpr0
     xpr[3][2] = p32[0]
@@ -294,52 +304,149 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     p43 = Ppr
     (xpr[4][3],ypr[4][3]) = p43
 
-    r33to43 = find_ratio_01_12(p33, p43, p53)
-    p42 = find_point_by_ratio(p32, p52, r33to43)
+    of33_to_34 = find_offset(p33, p34)
+    of33_to_32 = find_offset(p33, p32)
+    of53_to_54 = find_offset(p53, p54)
+    of53_to_52 = find_offset(p53, p52)
+
+    # original method: find p42 from p32 and p52
+    #r33to43 = find_ratio_01_12(p33, p43, p53)
+    #p42 = find_point_by_ratio(p32, p52, r33to43)
+    #(xpr[4][2], ypr[4][2]) = p42
+
+    # original method: find p44 from p34 and p54
+    #p44 = find_point_by_ratio(p34, p54, r33to43)
+    #(xpr[4][4],ypr[4][4]) = p44
+    # now we have the central 9 points ready
+
+    # new method, find p42 from p33, p32 and p53, p53
+    p42 = add_offset(p43, find_mid_point(of33_to_32, of53_to_52))
     (xpr[4][2], ypr[4][2]) = p42
 
-    p44 = find_point_by_ratio(p34, p54, r33to43)
+    p44 = add_offset(p43, find_mid_point(of33_to_34, of53_to_54))
     (xpr[4][4],ypr[4][4]) = p44
 
-    p41 = find_ext_pt(p43, p42, 1)
-    (xpr[4][1], ypr[4][1]) = p41
+    # Upper middle part
+    p23 = find_ext_pt(p43, p33, 1)
+    (xpr[2][3], ypr[2][3]) = p23
+    p13 = find_ext_pt(p33, p23, 1)
+    (xpr[1][3], ypr[1][3]) = p13
+    p03 = find_ext_pt(p23, p13, 1)
+    (xpr[0][3], ypr[0][3]) = p03
 
-    p40 = find_ext_pt(p42, p41, 1)
-    (xpr[4][0], ypr[4][0]) = p40
+    # Upper right part
+
+
+    p24 = add_offset(p23, of33_to_34)
+    (xpr[2][4], ypr[2][4]) = p24
+    p25 = add_offset(p24, of33_to_34)
+    (xpr[2][5], ypr[2][5]) = p25
+    p26 = add_offset(p25, of33_to_34)
+    (xpr[2][6], ypr[2][6]) = p26
+
+    p14 = add_offset(p13, of33_to_34)
+    (xpr[1][4], ypr[1][4]) = p14
+    p15 = add_offset(p14, of33_to_34)
+    (xpr[1][5], ypr[1][5]) = p15
+    p16 = add_offset(p15, of33_to_34)
+    (xpr[1][6], ypr[1][6]) = p16
+
+    p04 = add_offset(p03, of33_to_34)
+    (xpr[0][4], ypr[0][4]) = p04
+    p05 = add_offset(p04, of33_to_34)
+    (xpr[0][5], ypr[0][5]) = p05
+    p06 = add_offset(p05, of33_to_34)
+    (xpr[0][6], ypr[0][6]) = p06
 
     p45 = find_ext_pt(p43, p44, 1)
     (xpr[4][5], ypr[4][5]) = p45
-
     p46 = find_ext_pt(p44, p45, 1)
     (xpr[4][6], ypr[4][6]) = p46
 
-    p20 = find_ext_pt(p40, p30, 1)
+    p41 = find_ext_pt(p43, p42, 1)
+    (xpr[4][1], ypr[4][1]) = p41
+    p40 = find_ext_pt(p42, p41, 1)
+    (xpr[4][0], ypr[4][0]) = p40
+
+    # Upper left prt
+
+    p22 = add_offset(p23, of33_to_32)
+    (xpr[2][2], ypr[2][2]) = p22
+    p21 = add_offset(p22, of33_to_32)
+    (xpr[2][1], ypr[2][1]) = p21
+    p20 = add_offset(p21, of33_to_32)
     (xpr[2][0], ypr[2][0]) = p20
-    p10 = find_ext_pt(p30, p20, 1)
+
+    p12 = add_offset(p13, of33_to_32)
+    (xpr[1][2], ypr[1][2]) = p12
+    p11 = add_offset(p12, of33_to_32)
+    (xpr[1][1], ypr[1][1]) = p11
+    p10 = add_offset(p11, of33_to_32)
     (xpr[1][0], ypr[1][0]) = p10
-    p00 = find_ext_pt(p20, p10, 1)
+
+    p02 = add_offset(p03, of33_to_32)
+    (xpr[0][2], ypr[0][2]) = p02
+    p01 = add_offset(p02, of33_to_32)
+    (xpr[0][1], ypr[0][1]) = p01
+    p00 = add_offset(p01, of33_to_32)
     (xpr[0][0], ypr[0][0]) = p00
 
-    p21 = find_ext_pt(p41, p31, 1)
-    (xpr[2][1], ypr[2][1]) = p21
-    p11 = find_ext_pt(p31, p21, 1)
-    (xpr[1][1], ypr[1][1]) = p11
-    p01 = find_ext_pt(p21, p11, 1)
-    (xpr[0][1], ypr[0][1]) = p01
+    # Lower middle part
+    p63 = find_ext_pt(p43, p53, 1)
+    (xpr[6][3], ypr[6][3]) = p63
 
-    p22 = find_ext_pt(p42, p32, 1)
-    (xpr[2][2], ypr[2][2]) = p22
-    p12 = find_ext_pt(p32, p22, 1)
-    (xpr[1][2], ypr[1][2]) = p12
-    p02 = find_ext_pt(p22, p12, 1)
-    (xpr[0][2], ypr[0][2]) = p02
+    # Lower right part
 
-    p60 = find_ext_pt(p40, p50, 1)
-    (xpr[6][0], ypr[6][0]) = p60
-    p61 = find_ext_pt(p41, p51, 1)
-    (xpr[6][1], ypr[6][1]) = p61
-    p62 = find_ext_pt(p42, p52, 1)
+    p64 = add_offset(p63, of53_to_54)
+    (xpr[6][4], ypr[6][4]) = p64
+    p65 = add_offset(p64, of53_to_54)
+    (xpr[6][5], ypr[6][5]) = p65
+    p66 = add_offset(p65, of53_to_54)
+    (xpr[6][6], ypr[6][6]) = p66
+
+    # Lower left part
+    p62 = add_offset(p63, of53_to_52)
     (xpr[6][2], ypr[6][2]) = p62
+    p61 = add_offset(p62, of53_to_52)
+    (xpr[6][1], ypr[6][1]) = p61
+    p60 = add_offset(p61, of53_to_52)
+    (xpr[6][0], ypr[6][0]) = p60
+
+    return { "x": xpr,
+             "y": ypr }  
+
+def ctrl_pts_flat( dst_pts, src_landmark, dst_landmark):
+    Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
+    Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
+    P = (dst_landmark["x"][2], dst_landmark["y"][2])
+    Q3 = (dst_landmark["x"][3], dst_landmark["y"][3])
+    Q4 = (dst_landmark["x"][4], dst_landmark["y"][4])
+
+    Qpr0 = (src_landmark["x"][0], src_landmark["y"][0])
+    Qpr1 = (src_landmark["x"][1], src_landmark["y"][1])
+    Ppr = (src_landmark["x"][2], src_landmark["y"][2])
+    Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
+    Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
+
+    xv = dst_pts["x"]
+    yv = dst_pts["y"]
+    (rows, cols) = xv.shape
+
+    xpr = np.zeros(xv.shape)
+    ypr = np.zeros(yv.shape)
+
+    xpr0 = Qpr0[0] - (Qpr1[0]-Qpr0[0]) * 1.8
+    xpr1 = Qpr1[0] + (Qpr1[0]-Qpr0[0]) * 1.8
+    ypr0 = Ppr[1] - (Ppr[1]-Qpr0[1]) * 4
+    ypr1 = Ppr[1] + (Ppr[1]-Qpr0[1]) * 2
+
+    delta_x = (xpr1-xpr0)/cols
+    delta_y = (ypr1-ypr0)/rows
+
+    for j in range(rows):
+        for i in range(cols):
+            xpr[j][i] = (xpr0 + delta_x * i)
+            ypr[j][i] = (ypr0 + delta_y * j)
 
     return { "x": xpr,
              "y": ypr }  
@@ -351,19 +458,19 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
 
 #dst_dir = "../../data/output/fr-01/"
 
-#src_dir = "../../Data/Input/FR-02/"
-#src_inf_fname = "INF_2020-02-04_01-40-46"
-#src_png_fname = "NIR_2020-02-04_01-40-46"
-#src_png_ext = ".png"
-
-#dst_dir = "../../Data/Output/FR-02/"
-
-src_dir = "../../Data/Input/FR-03/"
-src_inf_fname = "INF_20200307_163238"
-src_png_fname = "IMG_20200307_163238"
+src_dir = "../../Data/Input/FR-02/"
+src_inf_fname = "INF_2020-02-04_01-40-46"
+src_png_fname = "NIR_2020-02-04_01-40-46"
 src_png_ext = ".png"
 
-dst_dir = "../../Data/Output/FR-03/"
+dst_dir = "../../Data/Output/FR-02/"
+
+#src_dir = "../../Data/Input/FR-03/"
+#src_inf_fname = "INF_20200307_163238"
+#src_png_fname = "IMG_20200307_163238"
+#src_png_ext = ".png"
+
+#dst_dir = "../../Data/Output/FR-03/"
 
 src_img_fname = src_png_fname + "_src_img"
 src_img_format = "raw8"

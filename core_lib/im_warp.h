@@ -143,10 +143,7 @@ struct tile_gray8
         {
             const point_t<float> src_start_point_delta =
                 { (user_config.src_p01.x - user_config.src_p00.x) / static_cast<float>(dst_tile_height),
-                  (user_config.src_p11.y - user_config.src_p10.y) / static_cast<float>(dst_tile_height) };
-
-            //const point_t<float> src_start_point_delta =
-            //    (user_config.src_p01 - user_config.src_p00) / static_cast<float>(dst_tile_height);
+                  (user_config.src_p01.y - user_config.src_p00.y) / static_cast<float>(dst_tile_height) };
 
             const point_t<float> src_end_point_delta =
                 { (user_config.src_p11.x - user_config.src_p10.x) / static_cast<float>(dst_tile_height),
