@@ -135,8 +135,8 @@ struct tile_gray8
     struct tile_proc_driver_setting_t
     {
         tile_proc_driver_setting_t(const tile_proc_user_config_t& user_config)
-            : dst_tile_height(user_config.dst_p01.y - user_config.dst_p00.y + 1),
-              dst_tile_width(user_config.dst_p10.x - user_config.dst_p00.x + 1),
+            : dst_tile_height(user_config.dst_p01.y - user_config.dst_p00.y),
+              dst_tile_width(user_config.dst_p10.x - user_config.dst_p00.x),
               dst_start_points(dst_tile_height),
               src_start_points(dst_tile_height),
               src_line_delta(dst_tile_height)

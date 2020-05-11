@@ -458,19 +458,19 @@ def ctrl_pts_flat( dst_pts, src_landmark, dst_landmark):
 
 #dst_dir = "../../data/output/fr-01/"
 
-src_dir = "../../Data/Input/FR-02/"
-src_inf_fname = "INF_2020-02-04_01-40-46"
-src_png_fname = "NIR_2020-02-04_01-40-46"
-src_png_ext = ".png"
-
-dst_dir = "../../Data/Output/FR-02/"
-
-#src_dir = "../../Data/Input/FR-03/"
-#src_inf_fname = "INF_20200307_163238"
-#src_png_fname = "IMG_20200307_163238"
+#src_dir = "../../Data/Input/FR-02/"
+#src_inf_fname = "INF_2020-02-04_01-40-46"
+#src_png_fname = "NIR_2020-02-04_01-40-46"
 #src_png_ext = ".png"
 
-#dst_dir = "../../Data/Output/FR-03/"
+#dst_dir = "../../Data/Output/FR-02/"
+
+src_dir = "../../Data/Input/FR-03/"
+src_inf_fname = "INF_20200307_163238"
+src_png_fname = "IMG_20200307_163238"
+src_png_ext = ".png"
+
+dst_dir = "../../Data/Output/FR-03/"
 
 src_img_fname = src_png_fname + "_src_img"
 src_img_format = "raw8"
