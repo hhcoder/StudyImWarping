@@ -139,7 +139,7 @@ struct tile_gray8
               dst_tile_width(user_config.dst_p10.x - user_config.dst_p00.x + 1),
               dst_start_points(dst_tile_height),
               src_start_points(dst_tile_height),
-              src_line_delta(dst_tile_height, std::vector<point_t<float>>(dst_tile_width))
+              src_line_delta(dst_tile_height)
         {
             const point_t<float> src_start_point_delta =
                 { (user_config.src_p01.x - user_config.src_p00.x) / static_cast<float>(dst_tile_height),
@@ -161,11 +161,8 @@ struct tile_gray8
                     { user_config.src_p10.x + src_end_point_delta.x * j,
                       user_config.src_p10.y + src_end_point_delta.y * j };
 
-                for (int i = 0; i < dst_tile_width; i++)
-                {
-                    src_line_delta[j][i].x = (src_end_points.x - src_start_points[j].x) / static_cast<float>(dst_tile_width);
-                    src_line_delta[j][i].y = (src_end_points.y - src_start_points[j].y) / static_cast<float>(dst_tile_width);
-                }
+                src_line_delta[j].x = (src_end_points.x - src_start_points[j].x) / static_cast<float>(dst_tile_width);
+                src_line_delta[j].y = (src_end_points.y - src_start_points[j].y) / static_cast<float>(dst_tile_width);
             }
         }
 
@@ -176,7 +173,7 @@ struct tile_gray8
 
         std::vector<point_t<float>> src_start_points;
 
-        std::vector<std::vector<point_t<float>>> src_line_delta;
+        std::vector<point_t<float>> src_line_delta;
     };
 
     static void tile_warp_proc(tile_proc_user_config_t& user_config)
@@ -199,8 +196,8 @@ struct tile_gray8
         {
             for (int i = 0; i < driver_setting.dst_tile_width; i++)
             {
-                float src_x = driver_setting.src_start_points[j].x + driver_setting.src_line_delta[j][i].x * i; 
-                float src_y = driver_setting.src_start_points[j].y + driver_setting.src_line_delta[j][i].y * i;
+                float src_x = driver_setting.src_start_points[j].x + driver_setting.src_line_delta[j].x * i; 
+                float src_y = driver_setting.src_start_points[j].y + driver_setting.src_line_delta[j].y * i;
 
                 int dst_x = driver_setting.dst_start_points[j].x + i;
                 int dst_y = driver_setting.dst_start_points[j].y;
