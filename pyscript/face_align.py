@@ -64,14 +64,6 @@ def Bierer_Neely_Algo(P, Q, Ppr, Qpr, X):
     t2 = np.divide(np.multiply(v, perpendicular(np.subtract(Qpr,Ppr))), euclidean_dist(Q, P))
     Xpr = Ppr + t1 + t2
 
-    #d = distance_point_to_line_seg(X[0], X[1], P[0], P[1], Q[0], Q[1])
-    #if u > 0 and u < 1:
-    #    d = abs(v)
-    #elif u <= 0:
-    #    d = distance_point_to_point(P[0], P[1], X[0], X[1])
-    #else:
-    #    d = distance_point_to_point(Q[0], Q[1], X[0], X[1])
-
     d = distance_point_to_point(Q[0], Q[1], X[0], X[1])
 
     l = math.sqrt((P[0]-Q[0])**2 + (P[1]-Q[1])**2)
@@ -97,7 +89,7 @@ def ctrl_pts_rect_grid(img_width, img_height, ctrl_cols, ctrl_rows):
             y[j][i] = yidx[j]
     return {"x": x, "y": y}
 
-def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
+def ctrl_pts_beirer_neely( dst_pts, src_landmark, dst_landmark):
     Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
     Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
     P = (dst_landmark["x"][2], dst_landmark["y"][2])
@@ -120,10 +112,16 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
     for j in range(rows):
         for i in range(cols):
             X = (xv[j][i], yv[j][i])
-            v0 = Bierer_Neely_Algo(P, Q0, Ppr, Qpr0, X)
-            v1 = Bierer_Neely_Algo(P, Q1, Ppr, Qpr1, X)
-            v2 = Bierer_Neely_Algo(P, Q3, Ppr, Qpr3, X)
-            v3 = Bierer_Neely_Algo(P, Q4, Ppr, Qpr4, X)
+            # nose to four corners
+            #v0 = Bierer_Neely_Algo(P, Q0, Ppr, Qpr0, X)
+            #v1 = Bierer_Neely_Algo(P, Q1, Ppr, Qpr1, X)
+            #v2 = Bierer_Neely_Algo(P, Q3, Ppr, Qpr3, X)
+            #v3 = Bierer_Neely_Algo(P, Q4, Ppr, Qpr4, X)
+            # four corners as rectangle
+            v0 = Bierer_Neely_Algo(Q0, Q1, Qpr0, Qpr1, X)
+            v1 = Bierer_Neely_Algo(Q0, Q3, Qpr0, Qpr3, X)
+            v2 = Bierer_Neely_Algo(Q1, Q3, Qpr1, Qpr3, X)
+            v3 = Bierer_Neely_Algo(Q3, Q4, Qpr3, Qpr4, X)
 
             lx = (v0["x"], v1["x"], v2["x"], v3["x"])
             ly = (v0["y"], v1["y"], v2["y"], v3["y"])
@@ -137,33 +135,14 @@ def ctrl_pts_bierer_neely( dst_pts, src_landmark, dst_landmark):
             a = 0.1
             b = 2
             p = 0
-            #weight = np.power(np.divide(np.power(length, p), np.add(a, dist)), b)
-            # weight = np.exp(np.negative(np.power(farness_scale, 2) ))
-            # weight = np.divide(np.max(farness), farness)
-            # weight = np.power(np.divide(np.max(farness), farness), 4) #lip works in this one
-            #weight = np.power(np.divide(np.max(farness_scale), farness_scale), 4) #lip works in this one
-            # weight = np.power(np.divide(np.min(cloness), cloness), 4) 
-            # weight = np.exp(np.negative(np.power(cloness_scale, 2) ))
             weight = np.exp(np.negative(np.divide(np.power(cloness_scale, 2), 0.05))) #Almost working version
-            # weight = (1, 1, 1, 1)
-            # weight = np.power(np.divide(np.max(dist_scale), dist_scale), 4)
-            # weight = np.power(np.divide(np.max(dist_scale), dist_scale), 4)
-            # idx_min = np.argmax(weight)
-            # val_min2 = np.max(np.delete(weight, idx_min))
-            # idx_min2 = np.where(np.isclose(weight,val_min2))
-            # xpr[j][i] = (weight[idx_min] * lx[idx_min] + weight[idx_min2] * lx[idx_min2]) / (weight[idx_min] + weight[idx_min2])
-            # ypr[j][i] = (weight[idx_min] * ly[idx_min] + weight[idx_min2] * ly[idx_min2]) / (weight[idx_min] + weight[idx_min2])
             xpr[j][i] = sum( np.multiply(lx, weight) ) / sum(weight)
             ypr[j][i] = sum( np.multiply(ly, weight) ) / sum(weight)
-            #xpr[j][i] = lx[idx_min]
-            #ypr[j][i] = ly[idx_min]
-            xpr[j][i] = v3["x"]
-            ypr[j][i] = v3["y"]
 
     return { "x": xpr,
              "y": ypr }  
 
-def ctrl_pts_bierer_neely_adv( dst_pts, src_landmark, dst_landmark):
+def ctrl_pts_beirer_neely_adv( dst_pts, src_landmark, dst_landmark):
     Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
     Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
     P = (dst_landmark["x"][2], dst_landmark["y"][2])
@@ -195,11 +174,11 @@ def ctrl_pts_bierer_neely_adv( dst_pts, src_landmark, dst_landmark):
             v6 = Bierer_Neely_Algo(Q1, Q3, Qpr1, Qpr3, X)
             v7 = Bierer_Neely_Algo(Q3, Q4, Qpr3, Qpr4, X)
 
-            lx = (v0["x"], v1["x"], v2["x"], v3["x"], v4["x"], v5["x"], v6["x"], v7["x"])
-            ly = (v0["y"], v1["y"], v2["y"], v3["y"], v4["y"], v5["y"], v6["y"], v7["y"])
-            dist = (v0["d"], v1["d"], v2["d"], v3["d"], v4["d"], v5["d"], v6["d"], v7["d"])
-            dist_scale = np.divide(np.subtract(dist, np.min(dist)), np.max(dist)-np.min(dist))
+            lx =      (v0["x"], v1["x"], v2["x"], v3["x"], v4["x"], v5["x"], v6["x"], v7["x"])
+            ly =      (v0["y"], v1["y"], v2["y"], v3["y"], v4["y"], v5["y"], v6["y"], v7["y"])
+            dist =    (v0["d"], v1["d"], v2["d"], v3["d"], v4["d"], v5["d"], v6["d"], v7["d"])
             farness = (v0["f"], v1["f"], v2["f"], v3["f"], v4["f"], v5["f"], v6["f"], v7["f"])
+            dist_scale = np.divide(np.subtract(dist, np.min(dist)), np.max(dist)-np.min(dist))
             farness_scale = np.divide(np.subtract(farness, np.min(farness)), np.max(farness)-np.min(farness))
             weight = np.exp(np.negative(np.divide(np.power(farness_scale, 2), 0.2))) #Almost working version
             weight = (1,1,1,1,1,1,1,1)
@@ -256,7 +235,7 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     xpr = np.zeros(xv.shape)
     ypr = np.zeros(yv.shape)
 
-    p32 = Qpr0
+    p32 = (Qpr0[0], Qpr0[1])
     xpr[3][2] = p32[0]
     ypr[3][2] = p32[1]
 
@@ -309,17 +288,7 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     of53_to_54 = find_offset(p53, p54)
     of53_to_52 = find_offset(p53, p52)
 
-    # original method: find p42 from p32 and p52
-    #r33to43 = find_ratio_01_12(p33, p43, p53)
-    #p42 = find_point_by_ratio(p32, p52, r33to43)
-    #(xpr[4][2], ypr[4][2]) = p42
-
-    # original method: find p44 from p34 and p54
-    #p44 = find_point_by_ratio(p34, p54, r33to43)
-    #(xpr[4][4],ypr[4][4]) = p44
-    # now we have the central 9 points ready
-
-    # new method, find p42 from p33, p32 and p53, p53
+    # find p42 from p33, p32 and p53, p53
     p42 = add_offset(p43, find_mid_point(of33_to_32, of53_to_52))
     (xpr[4][2], ypr[4][2]) = p42
 
@@ -335,8 +304,6 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     (xpr[0][3], ypr[0][3]) = p03
 
     # Upper right part
-
-
     p24 = add_offset(p23, of33_to_34)
     (xpr[2][4], ypr[2][4]) = p24
     p25 = add_offset(p24, of33_to_34)
@@ -368,8 +335,7 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     p40 = find_ext_pt(p42, p41, 1)
     (xpr[4][0], ypr[4][0]) = p40
 
-    # Upper left prt
-
+    # Upper left part
     p22 = add_offset(p23, of33_to_32)
     (xpr[2][2], ypr[2][2]) = p22
     p21 = add_offset(p22, of33_to_32)
@@ -396,7 +362,6 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     (xpr[6][3], ypr[6][3]) = p63
 
     # Lower right part
-
     p64 = add_offset(p63, of53_to_54)
     (xpr[6][4], ypr[6][4]) = p64
     p65 = add_offset(p64, of53_to_54)
@@ -451,140 +416,163 @@ def ctrl_pts_flat( dst_pts, src_landmark, dst_landmark):
     return { "x": xpr,
              "y": ypr }  
 
+# main function
+def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
+
+    src_png_ext = ".png"
+
+    src_img_fname = src_png_fname + "_src_img"
+    src_img_format = "raw8"
+
+    dst_img_width = 120
+    dst_img_height = 120
+    dst_tile_hor_count = 7 
+    dst_tile_ver_count = 7 
+    dst_img_format = "raw8"
+
+    dst_img_fname = src_png_fname + "_warpped_img"
+
+    control_point_dim = (dst_tile_hor_count, dst_tile_ver_count)
+
+    if not os.path.exists(dst_dir):
+        os.makedirs(dst_dir)
+
+    user_config_fname = src_png_fname + "_user_config"
+    input_data_fname = src_png_fname + "_input_data"
+    driver_setting_fname = src_png_fname + "_driver_setting"
+    master_location_fname = src_png_fname + "_main"
+    dbg_setting_fname = src_png_fname + "_debug_setting"
+
+    src_img_info = cfg.decode_image_to_binary_format(
+        src_dir, src_png_fname, src_png_ext,
+        dst_dir, src_img_fname, src_img_format)
+
+    dst_img_info = {
+        "width": dst_img_width,
+        "height": dst_img_height,
+        "stride": dst_img_width,
+        "format": dst_img_format }
+
+    dst_pts = ctrl_pts_rect_grid(
+        dst_img_info["width"], dst_img_info["height"],
+        control_point_dim[0], control_point_dim[1])
+
+    dst_landmark = {
+        "x": np.array([38.2946, 73.5318, 56.0252, 41.5493, 70.7299]),
+        "y": np.array([51.6963, 51.5014, 71.7366, 92.3655, 92.2041]) }
+
+    src_inf = read_inf(src_dir, src_inf_fname)
+    src_landmark = {
+        "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
+              src_inf["NIR parameter"]["LM"][1]["x"], 
+              src_inf["NIR parameter"]["LM"][2]["x"],
+              src_inf["NIR parameter"]["LM"][3]["x"],
+              src_inf["NIR parameter"]["LM"][4]["x"]],
+        "y": [src_inf["NIR parameter"]["LM"][0]["y"], 
+              src_inf["NIR parameter"]["LM"][1]["y"], 
+              src_inf["NIR parameter"]["LM"][2]["y"],
+              src_inf["NIR parameter"]["LM"][3]["y"],
+              src_inf["NIR parameter"]["LM"][4]["y"]] }
+
+    if algo_select == "ht":
+        # Modify dst_landmark to (120,120) based
+        # so we need to scale landmarks with 120/112
+        dst_landmark = dst_landmark
+        dst_landmark["x"] = np.add(np.multiply(np.subtract(dst_landmark["x"], 112/2), 120/112), 120/2)
+        dst_landmark["y"] = np.add(np.multiply(np.subtract(dst_landmark["y"], 112/2), 120/112), 120/2)
+        src_pts = ctrl_pts_ht(
+            dst_pts,
+            src_landmark,
+            dst_landmark)
+        #src_pts = dict(ht_src_pts)
+        # modify src_pts back to (112,112)
+        #src_pts["x"] = np.add(np.multiply(np.subtract(ht_src_pts["x"], 480/2), 112/120), 480/2)
+        #src_pts["y"] = np.add(np.multiply(np.subtract(ht_src_pts["y"], 640/2), 112/120), 640/2)
+        # so we need to scale src_pts with 112/120
+    else: #bierer-neely
+        src_pts = ctrl_pts_beirer_neely(
+            dst_pts,
+            src_landmark,
+            dst_landmark)
+
+    cfg.generate_user_config(
+        src_img_info,
+        dst_dir, dst_img_info,
+        control_point_dim,
+        src_pts,
+        dst_pts,
+        user_config_fname)
+
+    cfg.generate_input_data(
+        dst_dir, src_img_fname,
+        dst_dir, dst_img_fname,
+        input_data_fname)
+
+    cfg.generate_driver_setting(
+        dst_dir, user_config_fname, 
+        dst_dir, driver_setting_fname)
+
+    cfg.generate_dbg_setting(
+        dst_dir, 
+        dbg_setting_fname)
+
+    cfg.generate_master_setting(
+        dst_dir, 
+        input_data_fname, 
+        user_config_fname, 
+        driver_setting_fname, 
+        dbg_setting_fname,
+        dst_dir, master_location_fname)
+
+    cmdline.exe(os.path.join(dst_dir, master_location_fname+".json"))
+
+    result = result_gen.read(dst_dir, master_location_fname)
+
+    fig,axes = plt.subplots(1,2)
+    axes[0].imshow(result["src"]["img"], cmap="gray")
+    axes[0].plot(result["src"]["x"], result["src"]["y"], "*y")
+    axes[0].plot(src_landmark["x"], src_landmark["y"], "*b")
+    axes[0].set_title("SRC")
+
+    axes[1].imshow(result["dst"]["img"], cmap="gray")
+    axes[1].plot(dst_landmark["x"], dst_landmark["y"], "*b")
+    axes[1].plot(result["dst"]["x"], result["dst"]["y"], "*y")
+    axes[1].set_title("DST")
+
+    util.plt_show()
+
+    fig.savefig(os.path.join(dst_dir, dbg_setting_fname+"_result_fig.png"))
+    pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_input_image.png"), result["src"]["img"], cmap='gray')
+    pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_output_image.png"), result["dst"]["img"], cmap='gray')
+
 #src_dir = "../../data/input/fr-01/"
 #src_inf_fname = "inf_2020-03-18-04-55-32-411"
 #src_png_fname = "nir_2020-03-18-04-55-32-411"
 #src_png_ext = ".png"
-
 #dst_dir = "../../data/output/fr-01/"
 
 #src_dir = "../../Data/Input/FR-02/"
 #src_inf_fname = "INF_2020-02-04_01-40-46"
 #src_png_fname = "NIR_2020-02-04_01-40-46"
 #src_png_ext = ".png"
-
 #dst_dir = "../../Data/Output/FR-02/"
 
-src_dir = "../../Data/Input/FR-03/"
-src_inf_fname = "INF_20200307_163238"
-src_png_fname = "IMG_20200307_163238"
-src_png_ext = ".png"
+#src_dir = "../../Data/Input/FR-03/"
+#src_inf_fname = "INF_20200307_163238"
+#src_png_fname = "IMG_20200307_163238"
+#src_png_ext = ".png"
+#dst_dir = "../../Data/Output/FR-03/"
 
-dst_dir = "../../Data/Output/FR-03/"
+src_dir = "../../Data/Input/FR-04/"
+src_inf_fname = "QuarantineInHome"
+src_png_fname = "QuarantineInHome"
+dst_dir = "../../Data/Output/FR-04/"
 
-src_img_fname = src_png_fname + "_src_img"
-src_img_format = "raw8"
+# use "ht" or "bierer-neely" option to switch between two anchor point generation algorithms
+# "ht" version introduces more twist to the image, but warp the landmark to standard position
+# "bierier-neely" version maintains more original shape of the image, but has more offset of the landmark (to standard position) 
 
-dst_img_width = 112 
-dst_img_height = 112
-dst_tile_hor_count = 7 
-dst_tile_ver_count = 7 
-dst_img_format = "raw8"
+face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, "ht")
+#                                                            ^
+#                                                          "beirer-neely"
 
-dst_img_fname = src_png_fname + "_warpped_img"
-
-control_point_dim = (dst_tile_hor_count, dst_tile_ver_count)
-
-if not os.path.exists(dst_dir):
-    os.makedirs(dst_dir)
-
-user_config_fname = src_png_fname + "_user_config"
-input_data_fname = src_png_fname + "_input_data"
-driver_setting_fname = src_png_fname + "_driver_setting"
-master_location_fname = src_png_fname + "_main"
-dbg_setting_fname = src_png_fname + "_debug_setting"
-
-# src_img = read_img(src_dir, src_png_fname, src_png_ext)
-
-src_img_info = cfg.decode_image_to_binary_format(
-    src_dir, src_png_fname, src_png_ext,
-    dst_dir, src_img_fname, src_img_format)
-
-
-dst_img_info = {
-    "width": dst_img_width,
-    "height": dst_img_height,
-    "stride": dst_img_width,
-    "format": dst_img_format }
-
-dst_pts = ctrl_pts_rect_grid(
-    dst_img_info["width"], dst_img_info["height"],
-    control_point_dim[0], control_point_dim[1])
-
-dst_landmark = {
-    "x": np.array([38.2946, 73.5318, 56.0252, 41.5493, 70.7299]),
-    "y": np.array([51.6963, 51.5014, 71.7366, 92.3655, 92.2041]) }
-
-#dst_landmark["x"] = np.multiply(dst_landmark["x"], 480/112)
-#dst_landmark["y"] = np.multiply(dst_landmark["y"], 480/112)
-
-src_inf = read_inf(src_dir, src_inf_fname)
-src_landmark = {
-    "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
-          src_inf["NIR parameter"]["LM"][1]["x"], 
-          src_inf["NIR parameter"]["LM"][2]["x"],
-          src_inf["NIR parameter"]["LM"][3]["x"],
-          src_inf["NIR parameter"]["LM"][4]["x"]],
-    "y": [src_inf["NIR parameter"]["LM"][0]["y"], 
-          src_inf["NIR parameter"]["LM"][1]["y"], 
-          src_inf["NIR parameter"]["LM"][2]["y"],
-          src_inf["NIR parameter"]["LM"][3]["y"],
-          src_inf["NIR parameter"]["LM"][4]["y"]] }
-
-# dst_landmark["x"] = src_landmark["x"]
-# dst_landmark["y"] = src_landmark["y"]
-
-src_pts = ctrl_pts_ht(
-    dst_pts,
-    src_landmark,
-    dst_landmark)
-
-cfg.generate_user_config(
-    src_img_info,
-    dst_dir, dst_img_info,
-    control_point_dim,
-    src_pts,
-    dst_pts,
-    user_config_fname)
-
-cfg.generate_input_data(
-    dst_dir, src_img_fname,
-    dst_dir, dst_img_fname,
-    input_data_fname)
-
-cfg.generate_driver_setting(
-    dst_dir, user_config_fname, 
-    dst_dir, driver_setting_fname)
-
-cfg.generate_dbg_setting(
-    dst_dir, 
-    dbg_setting_fname)
-
-cfg.generate_master_setting(
-    dst_dir, 
-    input_data_fname, 
-    user_config_fname, 
-    driver_setting_fname, 
-    dbg_setting_fname,
-    dst_dir, master_location_fname)
-
-cmdline.exe(os.path.join(dst_dir, master_location_fname+".json"))
-
-result = result_gen.read(dst_dir, master_location_fname)
-
-fig,axes = plt.subplots(1,2)
-axes[0].imshow(result["src"]["img"], cmap="gray")
-axes[0].plot(result["src"]["x"], result["src"]["y"], "*y")
-axes[0].plot(src_landmark["x"], src_landmark["y"], "*b")
-axes[0].set_title("SRC")
-
-axes[1].imshow(result["dst"]["img"], cmap="gray")
-axes[1].plot(dst_landmark["x"], dst_landmark["y"], "*b")
-axes[1].plot(result["dst"]["x"], result["dst"]["y"], "*y")
-axes[1].set_title("DST")
-
-util.plt_show()
-
-fig.savefig(os.path.join(dst_dir, dbg_setting_fname+"_result_fig.png"))
-pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_input_image.png"), result["src"]["img"], cmap='gray')
-pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_output_image.png"), result["dst"]["img"], cmap='gray')

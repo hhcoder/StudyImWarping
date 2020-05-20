@@ -37,12 +37,6 @@ struct tile_gray8
 
     using pixel_loc_t = point_t<int>;
 
-    //struct pixel_loc_t
-    //{
-    //    int x;
-    //    int y;
-    //};
-
     struct tile_proc_user_config_t
     {
         const uint8_t* src_buf; 
@@ -71,8 +65,8 @@ struct tile_gray8
         if (dst_y >= dst_dim.height || dst_x >= dst_dim.width)
             std::cout << "dst_y: " << dst_y << ", dst_x: " << dst_x << std::endl;
 
-        // nearest implementation
 #if 0
+        // nearest neighborhood implementation
         int nearest_src_x = static_cast<int>(std::round(src_x));
         int nearest_src_y = static_cast<int>(std::round(src_y));
 
@@ -190,6 +184,7 @@ struct tile_gray8
         std::cout << " p11: (" << user_config.dst_p11.x << "," << user_config.dst_p11.y << ")" << std::endl;
 
         // User config to driver setting
+        // TODO: read this driver setting from caller 
         tile_proc_driver_setting_t driver_setting(user_config);
 
         for (int j = 0; j < driver_setting.dst_tile_height; j++)

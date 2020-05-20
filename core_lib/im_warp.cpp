@@ -8,7 +8,6 @@
 template <typename T>
 struct img_generic_t : std::vector<T>
 {
-    //allocator
     img_generic_t(const int in_width, const int in_height, const int in_stride, const std::string& bin_path = "None")
         : width(in_width), height(in_height), stride(in_stride), std::vector<T>(in_height*in_stride)
     {
@@ -207,6 +206,7 @@ int main(int argc, char* argv[])
         img_gray8_t src_img(src_im_width, src_im_height, src_im_stride, src_im_path);
         img_gray8_t dst_img(dst_im_width, dst_im_height, dst_im_stride);
 
+        // TODO: read in driver_setting 
         warp_proc_gray8(
             src_img, 
             src_ctrl_pts_x, src_ctrl_pts_y, dst_ctrl_pts_x, dst_ctrl_pts_y, 
@@ -222,10 +222,6 @@ int main(int argc, char* argv[])
     {
         std::cout << "There was an error: " << e.what() << std::endl;
     }
-
-    // read in driver_setting 
-    // read in input_data
-
 
     return 0;
 }
