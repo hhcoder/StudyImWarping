@@ -235,11 +235,13 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     xpr = np.zeros(xv.shape)
     ypr = np.zeros(yv.shape)
 
-    p32 = (Qpr0[0], Qpr0[1])
+    #p32 = Qpr0
+    p32 = (Qpr0[0], Qpr0[1] + 4/40*(Qpr3[1]-Qpr0[1]))
     xpr[3][2] = p32[0]
     ypr[3][2] = p32[1]
 
-    p34 = Qpr1
+    #p34 = Qpr1
+    p34 = (Qpr1[0], Qpr1[1] + 4/40*(Qpr4[1]-Qpr1[1]))
     xpr[3][4] = p34[0]
     ypr[3][4] = p34[1]
 
@@ -262,10 +264,10 @@ def ctrl_pts_ht( dst_pts, src_landmark, dst_landmark):
     p53 = mid_point(Qpr3[0], Qpr3[1], Qpr4[0], Qpr4[1])
     (xpr[5][3],ypr[5][3]) = p53
 
-    p52 = find_ext_pt(p53, Qpr3, 7/13)
+    p52 = find_ext_pt(p53, Qpr3, 5/14)
     (xpr[5][2], ypr[5][2]) = p52
 
-    p54 = find_ext_pt(p53, Qpr4, 7/13)
+    p54 = find_ext_pt(p53, Qpr4, 5/14)
     (xpr[5][4], ypr[5][4]) = p54
 
     p51 = find_ext_pt(p53, p52, 1)
@@ -424,8 +426,8 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
     src_img_fname = src_png_fname + "_src_img"
     src_img_format = "raw8"
 
-    dst_img_width = 120
-    dst_img_height = 120
+    dst_img_width = 112
+    dst_img_height = 112
     dst_tile_hor_count = 7 
     dst_tile_ver_count = 7 
     dst_img_format = "raw8"
@@ -475,20 +477,10 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
               src_inf["NIR parameter"]["LM"][4]["y"]] }
 
     if algo_select == "ht":
-        # Modify dst_landmark to (120,120) based
-        # so we need to scale landmarks with 120/112
-        dst_landmark = dst_landmark
-        dst_landmark["x"] = np.add(np.multiply(np.subtract(dst_landmark["x"], 112/2), 120/112), 120/2)
-        dst_landmark["y"] = np.add(np.multiply(np.subtract(dst_landmark["y"], 112/2), 120/112), 120/2)
         src_pts = ctrl_pts_ht(
             dst_pts,
             src_landmark,
             dst_landmark)
-        #src_pts = dict(ht_src_pts)
-        # modify src_pts back to (112,112)
-        #src_pts["x"] = np.add(np.multiply(np.subtract(ht_src_pts["x"], 480/2), 112/120), 480/2)
-        #src_pts["y"] = np.add(np.multiply(np.subtract(ht_src_pts["y"], 640/2), 112/120), 640/2)
-        # so we need to scale src_pts with 112/120
     else: #bierer-neely
         src_pts = ctrl_pts_beirer_neely(
             dst_pts,
