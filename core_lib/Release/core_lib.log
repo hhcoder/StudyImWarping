@@ -1,0 +1,4 @@
+﻿  im_warp.cpp
+C:\HHWork\ImWarping\Development\core_lib\im_warp.h(9,10): fatal error C1083: Cannot open include file: 'dbg.h': No such file or directory
+  im_warp.h
+C:\HHWork\ImWarping\Development\core_lib\im_warp.h(9,10): fatal error C1083: Cannot open include file: 'dbg.h': No such file or directory

@@ -197,6 +197,11 @@ struct tile_gray8
                 int dst_x = driver_setting.dst_start_points[j].x + i;
                 int dst_y = driver_setting.dst_start_points[j].y;
 
+                if (dst_x >= user_config.dst_dim.width)
+                    break;
+                if (dst_y >= user_config.dst_dim.height)
+                    break;
+
                 interpolate_pixel(
                     user_config.src_buf,
                     user_config.src_dim,

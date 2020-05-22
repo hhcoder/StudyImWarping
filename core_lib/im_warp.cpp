@@ -203,6 +203,17 @@ int main(int argc, char* argv[])
 
         std::cout << "src_im_path: " << src_im_path << std::endl;
 
+        if (js_drv["dst"]["image_format"]["crop"].contains("left"))
+        {
+            int dst_img_crop_left = js_drv["dst"]["image_format"]["crop"]["left"].get<int>();
+            int dst_img_crop_right = js_drv["dst"]["image_format"]["crop"]["right"].get<int>();
+            int dst_img_crop_top = js_drv["dst"]["image_format"]["crop"]["top"].get<int>();
+            int dst_img_crop_bottom = js_drv["dst"]["image_format"]["crop"]["bottom"].get<int>();
+
+            dst_im_width -= dst_img_crop_right;
+            dst_im_height -= dst_img_crop_bottom;
+        }
+
         img_gray8_t src_img(src_im_width, src_im_height, src_im_stride, src_im_path);
         img_gray8_t dst_img(dst_im_width, dst_im_height, dst_im_stride);
 
