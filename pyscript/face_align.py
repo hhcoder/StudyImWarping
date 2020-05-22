@@ -628,21 +628,14 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
     src_img_fname = src_png_fname + "_src_img"
     src_img_format = "raw8"
 
-    dst_img_width = 112
-    dst_img_height = 112
+    dst_img_width = 114
+    dst_img_height = 114
     dst_tile_hor_count = 7 
     dst_tile_ver_count = 7 
     dst_img_format = "raw8"
 
     #ht_select = "grid-based"
     ht_select = "ratio-based"
-
-    if ht_select == "ratio-based":
-        dst_img_crop = {"left":0, "right":2, "top":0, "bottom": 2};
-        dst_img_width = 114
-        dst_img_height = 114
-    else:
-        dst_img_crop = "None"
 
     dst_img_fname = src_png_fname + "_warpped_img"
 
@@ -665,8 +658,7 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
         "width": dst_img_width,
         "height": dst_img_height,
         "stride": dst_img_width,
-        "format": dst_img_format, 
-        "crop": dst_img_crop}
+        "format": dst_img_format}
 
     dst_pts = ctrl_pts_rect_grid(
         dst_img_info["width"], dst_img_info["height"],
@@ -757,8 +749,15 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
         axes[1].set_title("DST")
         util.plt_show()
         fig.savefig(os.path.join(dst_dir, dbg_setting_fname+"_result_fig.png"))
-        pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_input_image.png"), result["src"]["img"], cmap='gray')
-        pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_output_image.png"), result["dst"]["img"], cmap='gray')
+
+    if algo_select == "ht" and ht_select == "ratio-based":
+        dst_img = np.array(result["dst"]["img"])
+        dst_img = dst_img[0:112, 0:112]
+    else:
+        dst_img = result["dst"]["img"] 
+
+    pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_input_image.png"), result["src"]["img"], cmap='gray')
+    pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_output_image.png"), dst_img, cmap='gray')
 
 def folder_based_proc(src_dir, dst_dir):
     for json_info_file in os.listdir(src_dir):
