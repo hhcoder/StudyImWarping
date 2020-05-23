@@ -621,6 +621,9 @@ def ctrl_pts_flat( dst_pts, src_landmark, dst_landmark):
              "y": ypr }  
 
 # main function
+# use "ht" or "bierer-neely" option to switch between two anchor point generation algorithms
+# "ht" version introduces more twist to the image, but warp the landmark to standard position
+# "bierier-neely" version maintains more original shape of the image, but has more offset of the landmark (to standard position) 
 def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
 
     src_png_ext = ".png"
@@ -628,14 +631,19 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
     src_img_fname = src_png_fname + "_src_img"
     src_img_format = "raw8"
 
-    dst_img_width = 114
-    dst_img_height = 114
+    ht_select = "ratio-based"
+    plot_option = "do_plot"
+
+    if algo_select == "ht" and ht_select == "ratio-based":
+        dst_img_width = 114
+        dst_img_height = 114
+    else:
+        dst_img_width = 112 
+        dst_img_height = 112
+
     dst_tile_hor_count = 7 
     dst_tile_ver_count = 7 
     dst_img_format = "raw8"
-
-    #ht_select = "grid-based"
-    ht_select = "ratio-based"
 
     dst_img_fname = src_png_fname + "_warpped_img"
 
@@ -664,6 +672,7 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
         dst_img_info["width"], dst_img_info["height"],
         control_point_dim[0], control_point_dim[1])
 
+    # golden
     #dst_landmark = {
     #    "x": np.array([38.2946, 73.5318, 56.0252, 41.5493, 70.7299]),
     #    "y": np.array([51.6963, 51.5014, 71.7366, 92.3655, 92.2041]) }
@@ -673,8 +682,8 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
     "x": np.array([38.3946, 73.6318, 56.0252, 41.4493, 70.6299]),
     "y": np.array([51.6066, 51.6014, 71.7366, 92.2855, 92.2841]) } # golden
 
-
     src_inf = read_inf(src_dir, src_inf_fname)
+
     src_landmark = {
         "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
               src_inf["NIR parameter"]["LM"][1]["x"], 
@@ -735,7 +744,6 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
 
     cmdline.exe(os.path.join(dst_dir, master_location_fname+".json"))
 
-    plot_option = "do_plot"
     if plot_option == "do_plot":
         result = result_gen.read(dst_dir, master_location_fname)
         fig,axes = plt.subplots(1,2)
@@ -759,7 +767,7 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
     pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_input_image.png"), result["src"]["img"], cmap='gray')
     pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_output_image.png"), dst_img, cmap='gray')
 
-def folder_based_proc(src_dir, dst_dir):
+def face_align_folder(src_dir, dst_dir):
     for json_info_file in os.listdir(src_dir):
         if json_info_file.startswith("INF"):
             src_info_fname = json_info_file.replace(".json", "")
@@ -772,7 +780,7 @@ dst_dir = "../../data/output/Lucas/"
 for f in os.listdir(src_dir):
     fpath = os.path.join(src_dir, f)
     if os.path.isdir(fpath):
-        folder_based_proc(fpath+"/", os.path.join(dst_dir, f+"/"))
+        face_align_folder(fpath+"/", os.path.join(dst_dir, f+"/"))
 
 #src_dir = "../../data/input/fr-01/"
 #src_inf_fname = "inf_2020-03-18-04-55-32-411"
