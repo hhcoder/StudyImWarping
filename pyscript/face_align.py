@@ -418,6 +418,10 @@ def ctrl_pts_ht_ratio_based( dst_pts, src_landmark, dst_landmark, adj_ratio):
         Q3[0] = (dst_landmark["x"][3] - mid_m_x)/m_ratio + mid_m_x
         Q4[0] = (dst_landmark["x"][4] - mid_m_x)/m_ratio + mid_m_x
         dst_m_range = Q4[0] - Q3[0]
+		P[0] = dst_landmark["x"][2] * (1 - adj_ratio) + adj_ratio*( (Ppr[0]-Qpr0[0])*dst_e_range/src_e_range + Q0[0] )
+		src_e_m_height =  Qpr4[1]+Qpr3[1]-Qpr1[1]-Qpr0[1] + 0.5* abs(  Qpr4[0]+Qpr3[0]-Qpr1[0]-Qpr0[0])
+		P[1] = dst_landmark["y"][2] * (1 - adj_ratio) + adj_ratio*( (Ppr[1]- (Qpr0[1]+Qpr1[1])*0.5 )*(Q4[1]+Q3[1]-Q1[1]-Q0[1])/(src_e_m_height) + (Q0[1]+Q1[1])*0.5 )
+
 
     dst_e_n_range = P[1] - (Q1[1] + Q0[1])/2
     dst_m_n_range = (Q4[1] + Q3[1])/2 - P[1]
