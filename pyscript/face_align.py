@@ -382,18 +382,18 @@ def ctrl_pts_ht_grid_based( dst_pts, src_landmark, dst_landmark):
     return { "x": xpr,
              "y": ypr }  
 
-def ctrl_pts_ht_ratio_based( dst_pts, src_landmark, dst_landmark):
-    Q0 = (dst_landmark["x"][0], dst_landmark["y"][0])
-    Q1 = (dst_landmark["x"][1], dst_landmark["y"][1])
-    P = (dst_landmark["x"][2], dst_landmark["y"][2])
-    Q3 = (dst_landmark["x"][3], dst_landmark["y"][3])
-    Q4 = (dst_landmark["x"][4], dst_landmark["y"][4])
+def ctrl_pts_ht_ratio_based( dst_pts, src_landmark, dst_landmark, adj_ratio):
+    Q0 = [dst_landmark["x"][0], dst_landmark["y"][0]]
+    Q1 = [dst_landmark["x"][1], dst_landmark["y"][1]]
+    P = [dst_landmark["x"][2], dst_landmark["y"][2]]
+    Q3 = [dst_landmark["x"][3], dst_landmark["y"][3]]
+    Q4 = [dst_landmark["x"][4], dst_landmark["y"][4]]
 
-    Qpr0 = (src_landmark["x"][0], src_landmark["y"][0])
-    Qpr1 = (src_landmark["x"][1], src_landmark["y"][1])
-    Ppr = (src_landmark["x"][2], src_landmark["y"][2])
-    Qpr3 = (src_landmark["x"][3], src_landmark["y"][3])
-    Qpr4 = (src_landmark["x"][4], src_landmark["y"][4])
+    Qpr0 = [src_landmark["x"][0], src_landmark["y"][0]]
+    Qpr1 = [src_landmark["x"][1], src_landmark["y"][1]]
+    Ppr = [src_landmark["x"][2], src_landmark["y"][2]]
+    Qpr3 = [src_landmark["x"][3], src_landmark["y"][3]]
+    Qpr4 = [src_landmark["x"][4], src_landmark["y"][4]]
 
     xv = dst_pts["x"]
     yv = dst_pts["y"]
@@ -409,6 +409,16 @@ def ctrl_pts_ht_ratio_based( dst_pts, src_landmark, dst_landmark):
 	# new dst_parametrs
     dst_e_range = Q1[0] - Q0[0]
     dst_m_range = Q4[0] - Q3[0]
+
+    if adj_ratio > 0 :
+        src_e_range = Qpr1[0] - Qpr0[0] + 0.5* abs( Qpr1[1] - Qpr0[1])
+        src_m_range = Qpr4[0] - Qpr3[0] + 0.5* abs( Qpr4[1] - Qpr3[1])
+        m_ratio = (( src_e_range *dst_m_range )  / (src_m_range * dst_e_range ) - 1)*adj_ratio + 1
+        mid_m_x = (Q3[0] + Q4[0])/2
+        Q3[0] = (dst_landmark["x"][3] - mid_m_x)/m_ratio + mid_m_x
+        Q4[0] = (dst_landmark["x"][4] - mid_m_x)/m_ratio + mid_m_x
+        dst_m_range = Q4[0] - Q3[0]
+
     dst_e_n_range = P[1] - (Q1[1] + Q0[1])/2
     dst_m_n_range = (Q4[1] + Q3[1])/2 - P[1]
     dst_t_size = 19
@@ -697,11 +707,14 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
               src_inf["NIR parameter"]["LM"][4]["y"]] }
 
     if algo_select == "ht":
+		# in range of [0 : 1.0], 0-> no change on golden, 1-> no transform on mouth range
+        adj_ratio = 0.0
         if ht_select == "ratio-based":
             src_pts = ctrl_pts_ht_ratio_based(
                 dst_pts,
                 src_landmark,
-                dst_landmark)
+                dst_landmark,
+                adj_ratio)
         else:
             src_pts = ctrl_pts_ht_grid_based(
                 dst_pts,
