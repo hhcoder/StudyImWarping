@@ -418,10 +418,9 @@ def ctrl_pts_ht_ratio_based( dst_pts, src_landmark, dst_landmark, adj_ratio):
         Q3[0] = (dst_landmark["x"][3] - mid_m_x)/m_ratio + mid_m_x
         Q4[0] = (dst_landmark["x"][4] - mid_m_x)/m_ratio + mid_m_x
         dst_m_range = Q4[0] - Q3[0]
-		P[0] = dst_landmark["x"][2] * (1 - adj_ratio) + adj_ratio*( (Ppr[0]-Qpr0[0])*dst_e_range/src_e_range + Q0[0] )
-		src_e_m_height =  Qpr4[1]+Qpr3[1]-Qpr1[1]-Qpr0[1] + 0.5* abs(  Qpr4[0]+Qpr3[0]-Qpr1[0]-Qpr0[0])
-		P[1] = dst_landmark["y"][2] * (1 - adj_ratio) + adj_ratio*( (Ppr[1]- (Qpr0[1]+Qpr1[1])*0.5 )*(Q4[1]+Q3[1]-Q1[1]-Q0[1])/(src_e_m_height) + (Q0[1]+Q1[1])*0.5 )
-
+        P[0] = (dst_landmark["x"][2] * (1 - adj_ratio)) + (adj_ratio * ((Ppr[0]-Qpr0[0])*dst_e_range/src_e_range+Q0[0]))
+        src_e_m_height = Qpr4[1] + Qpr3[1] - Qpr1[1] - Qpr0[1] + 0.5 * abs(Qpr4[0] + Qpr3[0] - Qpr1[0] - Qpr0[0])
+        P[1] = dst_landmark["y"][2] * (1 - adj_ratio) + adj_ratio*( (Ppr[1]- (Qpr0[1]+Qpr1[1])*0.5 )*(Q4[1]+Q3[1]-Q1[1]-Q0[1])/(src_e_m_height) + (Q0[1]+Q1[1])*0.5 )
 
     dst_e_n_range = P[1] - (Q1[1] + Q0[1])/2
     dst_m_n_range = (Q4[1] + Q3[1])/2 - P[1]
@@ -638,7 +637,10 @@ def ctrl_pts_flat( dst_pts, src_landmark, dst_landmark):
 # use "ht" or "bierer-neely" option to switch between two anchor point generation algorithms
 # "ht" version introduces more twist to the image, but warp the landmark to standard position
 # "bierier-neely" version maintains more original shape of the image, but has more offset of the landmark (to standard position) 
-def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
+#info_style = "nir_image"
+#info_style = "training_set"
+
+def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, info_style, algo_select="ht"):
 
     src_png_ext = ".png"
 
@@ -698,21 +700,29 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
 
     src_inf = read_inf(src_dir, src_inf_fname)
 
-    src_landmark = {
-        "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
-              src_inf["NIR parameter"]["LM"][1]["x"], 
-              src_inf["NIR parameter"]["LM"][2]["x"],
-              src_inf["NIR parameter"]["LM"][3]["x"],
-              src_inf["NIR parameter"]["LM"][4]["x"]],
-        "y": [src_inf["NIR parameter"]["LM"][0]["y"], 
-              src_inf["NIR parameter"]["LM"][1]["y"], 
-              src_inf["NIR parameter"]["LM"][2]["y"],
-              src_inf["NIR parameter"]["LM"][3]["y"],
-              src_inf["NIR parameter"]["LM"][4]["y"]] }
+    if info_style == "nir_image":
+        src_landmark = {
+            "x": [src_inf["NIR parameter"]["LM"][0]["x"], 
+                  src_inf["NIR parameter"]["LM"][1]["x"], 
+                  src_inf["NIR parameter"]["LM"][2]["x"],
+                  src_inf["NIR parameter"]["LM"][3]["x"],
+                  src_inf["NIR parameter"]["LM"][4]["x"]],
+            "y": [src_inf["NIR parameter"]["LM"][0]["y"], 
+                  src_inf["NIR parameter"]["LM"][1]["y"], 
+                  src_inf["NIR parameter"]["LM"][2]["y"],
+                  src_inf["NIR parameter"]["LM"][3]["y"],
+                  src_inf["NIR parameter"]["LM"][4]["y"]] }
+    elif info_style == "training_set":
+        src_landmark = {
+         "x": src_inf["lm_5pts"][:10:2], 
+         "y": src_inf["lm_5pts"][1:10:2] }
+    else:
+        print("Error in select info_style")
+
 
     if algo_select == "ht":
 		# in range of [0 : 1.0], 0-> no change on golden, 1-> no transform on mouth range
-        adj_ratio = 0.0
+        adj_ratio = 1.0
         if ht_select == "ratio-based":
             src_pts = ctrl_pts_ht_ratio_based(
                 dst_pts,
@@ -784,20 +794,30 @@ def face_align(src_dir, src_inf_fname, src_png_fname, dst_dir, algo_select):
     pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_input_image.png"), result["src"]["img"], cmap='gray')
     pltimage.imsave(os.path.join(dst_dir,dbg_setting_fname+"_output_image.png"), dst_img, cmap='gray')
 
-def face_align_folder(src_dir, dst_dir):
-    for json_info_file in os.listdir(src_dir):
-        if json_info_file.startswith("INF"):
-            src_info_fname = json_info_file.replace(".json", "")
-            src_png_fname = json_info_file.replace("INF", "NIR").replace(".json", "")
-            face_align(src_dir, src_info_fname, src_png_fname, dst_dir, "ht")
+def face_align_folder_nir_image(src_dir, dst_dir):
+    for fdir in os.listdir(src_dir):
+        if os.path.isdir(os.path.join(src_dir, fdir)):
+            proc_src_dir = src_dir+fdir+"/"
+            proc_dst_dir = dst_dir+fdir+"/"
+            for f in os.listdir(proc_src_dir):
+                if f.startswith("INF"):
+                    src_info_fname = f.replace(".json", "")
+                    src_png_fname = f.replace("INF", "NIR").replace(".json", "")
+                    face_align(proc_src_dir, src_info_fname, src_png_fname, proc_dst_dir, "nir_image")
 
-src_dir = "../../data/input/Lucas/"
-dst_dir = "../../data/output/Lucas/"
+def face_align_folder_training_image(src_dir, dst_dir):
+    for fdir in os.listdir(src_dir):
+        if os.path.isdir(os.path.join(src_dir, fdir)):
+            proc_src_dir = src_dir+fdir+"/"
+            proc_dst_dir = dst_dir+fdir+"/"
+            for f in os.listdir(proc_src_dir):
+                if f.endswith(".png"):
+                    src_png_fname = f.replace(".png", "")
+                    src_info_fname = src_png_fname.replace(".png", ".json")
+                    face_align(proc_src_dir, src_info_fname, src_png_fname, proc_dst_dir, "training_set")
 
-for f in os.listdir(src_dir):
-    fpath = os.path.join(src_dir, f)
-    if os.path.isdir(fpath):
-        face_align_folder(fpath+"/", os.path.join(dst_dir, f+"/"))
+face_align_folder_training_image("../../data/Input/Lucas2/", "../../data/Output/Lucas2/")
+face_align_folder_nir_image("../../data/input/Lucas/", "../../data/output/Lucas/")
 
 #src_dir = "../../data/input/fr-01/"
 #src_inf_fname = "inf_2020-03-18-04-55-32-411"
